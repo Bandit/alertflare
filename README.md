@@ -25,8 +25,8 @@ Facts were checked against developers.cloudflare.com in November 2026.
 
 ### Enable these native Notifications instead
 
-Go to Dashboard → Notifications → Add. Every notification here is available
-on Free and Pro, and can be delivered by email or webhook.
+Every notification here is available on Free and Pro, and can be delivered by
+email or webhook. Step-by-step setup is in **§2.5**.
 
 | Notification | Why |
 |---|---|
@@ -41,7 +41,9 @@ on Free and Pro, and can be delivered by email or webhook.
 These are **not** available natively on Free or Pro, so alertflare covers them:
 
 - WAF and security event alerts. Native Security Events Alerts need Business or higher.
-- Audit-log, API-token, member and login alerts. No native notification exists.
+- Audit-log, API-token and member alerts. No native notification exists.
+  (Dashboard logins aren't covered by either: they aren't in account audit
+  logs. See §9.)
 - DNS and zone change alerts. No native notification exists outside Secondary DNS.
 - Alerts that a Worker or cron stopped running. No native notification exists,
   which is why the heartbeat is built in.
@@ -156,6 +158,81 @@ npm run deploy
 
 The Worker has no public URL (`workers_dev: false`) and its `fetch` handler
 returns 404, so there is no HTTP endpoint to attack.
+
+### 2.5 Native Cloudflare notifications (set up alongside alertflare)
+
+The split:
+- **Cloudflare's native alerts** cover anything that's **down or broken right
+  now**: tunnels, your origin, certificates and DDoS attacks.
+  They fire within minutes.
+- **alertflare** covers what native alerts can't see on Free or Pro, in a daily
+  digest: blocked integrations, configuration changes, new API tokens, Access
+  denials, and DNS or SSL drift.
+
+All of these are set up in the dashboard, not in code. Go to
+**dash.cloudflare.com → your account → Notifications → Add**, pick the
+product and then the notification type, and add your email as the delivery
+method. After saving, use **Test** on each one. That shows you what it looks
+like and lets you mark it "not spam" if needed.
+
+**1. Tunnel Health Alert (the important one)**
+- Product: **Cloudflare Tunnel → Tunnel Health Alert**. No filters; it covers
+  every tunnel in the account.
+- Fires when a tunnel moves between Healthy, Degraded, Down and Inactive, and
+  again when it recovers. This is why alertflare has no tunnel collector.
+
+**2. Tunnel Creation or Deletion Event**
+- Product: **Cloudflare Tunnel → Tunnel Creation or Deletion Event**.
+- Gives an instant alert when any tunnel is created or deleted.
+
+**3. HTTP DDoS Attack Alert**
+- Product: **DDoS Protection → HTTP DDoS Attack Alert**. No filters; it covers
+  all zones.
+- Fires when Cloudflare mitigates an HTTP DDoS attack above 100 requests per
+  second. alertflare would only show such an attack the next morning, as
+  volume.
+
+**4. Universal SSL Alert**
+- Product: **SSL/TLS → Universal SSL Alert**.
+- Covers certificate validation, issuance, renewal and expiry problems. A
+  failed renewal would otherwise break HTTPS with no warning.
+
+**5. Health Check on your origin (Pro and above)**
+
+The Tunnel Health Alert only tells you whether the *tunnel* is up. It won't
+notice your app crashing behind a healthy tunnel and returning 502s.
+A Health Check covers that.
+
+1. Create the check: open the zone → **Traffic → Health Checks → Create**.
+   - Address: your app's public hostname, over HTTPS on port 443.
+   - Path: a page that returns 200 without logging in, so the check
+     needs no credentials.
+   - Expected codes: `200`.
+   - Check regions: the region nearest your origin.
+2. Add the notification: **Notifications → Add → Health Checks → Health Checks
+   status notification**. Select the health check and choose **Either**
+   (unhealthy *and* recovered).
+3. **Check your WAF rules let the probes through.** After 5–10 minutes,
+   the check should show **Healthy**. If it's unhealthy with a 403, a WAF rule
+   is blocking the probes: add an exception for the health check's user agent.
+   alertflare will also report those blocks in the next digest.
+
+**6. Optional**
+
+| Notification | When it's worth it |
+|---|---|
+| **Access → Expiring Access Service Token** | Only if you use Access service tokens, for example for scripts or machine-to-machine access. |
+| **Incident Alerts** | Cloudflare status incidents. Filter to major or critical impact, and to the components you use (Tunnel, Access, WAF, DNS), to keep it quiet. |
+| **Security Insights** | Cloudflare's Security Center findings, such as exposed origin IPs. Overlaps a little with alertflare's DNS-only record checks, but sees different things. |
+
+**Not available on Free or Pro (skip):**
+
+| Notification | Needs |
+|---|---|
+| Security Events Alert | Business or higher |
+| Origin Error Rate | Enterprise |
+| Layer 3/4 DDoS | Magic Transit or BYOIP |
+| PagerDuty delivery | Business or higher |
 
 ## 3. Schedules and daylight saving
 
