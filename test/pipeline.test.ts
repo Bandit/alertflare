@@ -49,7 +49,8 @@ describe("pipeline", () => {
     expect(r1.failures).toEqual([]);
     expect(n.sent).toHaveLength(1);
     const text = n.sent[0]!.text;
-    expect(n.sent[0]!.subject).toMatch(/Daily digest: 1 urgent, 2 warning, 2 info/);
+    expect(n.sent[0]!.subject).toMatch(/Daily digest: 2 urgent, 1 warning, 2 info/);
+    expect(text).toContain("dns_records change");
     expect(text.indexOf("URGENT")).toBeLessThan(text.indexOf("WARNING"));
     expect(text).toContain("POST /api/webhook/{id}");
     expect(text).not.toContain("test-token");

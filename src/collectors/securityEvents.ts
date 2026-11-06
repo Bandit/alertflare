@@ -14,7 +14,7 @@
 import type { Config } from "../config";
 import { chunk, dashLink } from "../cf/zones";
 import { makeClassifier, type Classifier } from "../lib/classify";
-import { normalisePath, redactPath } from "../lib/normalise";
+import { normalisePath, redactHost, redactPath } from "../lib/normalise";
 import type { Collector, CollectorStats, Finding, ZoneRef } from "../types";
 
 const ZONES_PER_QUERY = 10;
@@ -242,6 +242,7 @@ interface Agg {
 export function aggregate(
   rows: EventRow[],
   classifier: Classifier,
+  opts: { redactHostnames?: boolean } = {},
 ): { findings: Finding[]; stats: Record<string, CollectorStats> } {
   const stats: Record<string, CollectorStats> = {};
   const byFp = new Map<string, Agg>();
@@ -260,7 +261,7 @@ export function aggregate(
     const r = a.rows[0]!;
     const zs = (stats[r.zone] ??= { mitigated: 0, noise: 0, boring: 0, interesting: 0 });
     zs.mitigated! += a.count;
-    const verdict = classifier.classify({ path: r.path, method: r.method, count: a.count });
+    const verdict = classifier.classify({ path: r.path, method: r.method, count: a.count, source: r.source });
     if (verdict.kind === "noise") {
       zs.noise! += a.count;
       continue;
@@ -281,7 +282,7 @@ export function aggregate(
       zone: r.zone,
       count: a.count,
       kind: "recurring",
-      summary: `${r.method} ${normalisePath(r.path)} on ${r.host}: ${actions} by ${rule}`,
+      summary: `${r.method} ${normalisePath(r.path)} on ${opts.redactHostnames ? redactHost(r.host) : r.host}: ${actions} by ${rule}`,
       details: [
         `from ${asn}${countries ? ` (${countries})` : ""}`,
         `e.g. ${redactPath(r.path)}`,
@@ -366,7 +367,7 @@ export const securityEvents: Collector = {
       }
     }
 
-    const { findings, stats } = aggregate(allRows, classifier);
+    const { findings, stats } = aggregate(allRows, classifier, { redactHostnames: config.redactHostnames });
     // Per-zone breakdown for the heartbeat.
     for (const zone of Object.keys(perZone)) {
       const s = stats[zone] ?? { boring: 0, interesting: 0 };

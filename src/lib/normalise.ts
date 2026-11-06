@@ -76,6 +76,18 @@ export function redactPath(path: string): string {
 }
 
 /**
+ * Truncate random-looking DNS labels (e.g. an unguessable
+ * subdomain) the same way as path tokens. "app.example.com" is unchanged;
+ * "app-k3x9qw7vbn2mzp4rt8y.example.com" -> "app-k3x9….example.com".
+ */
+export function redactHost(host: string): string {
+  return host
+    .split(".")
+    .map((l) => (classifySegment(l) === "token" || classifySegment(l) === "hex" || classifySegment(l) === "uuid" ? truncateToken(l) : l))
+    .join(".");
+}
+
+/**
  * Remove anything resembling a credential from free text (audit log values,
  * error messages) before it is put into a notification.
  */
@@ -83,7 +95,7 @@ export function redactText(text: string): string {
   return text
     .replace(/(authorization|cookie|set-cookie|x-auth-key|x-auth-email|cf-access-jwt-assertion|cf-access-client-secret)\s*[:=]\s*(?:(?:Bearer|Basic|Token)\s+)?\S+/gi, "$1: [redacted]")
     .replace(/Bearer\s+[A-Za-z0-9._\-~+/=]+/g, "Bearer [redacted]")
-    .replace(/[A-Za-z0-9_\-]{32,}/g, (m) => truncateToken(m));
+    .replace(/[A-Za-z0-9_\-]{32,}/g, (m) => (/\d/.test(m) ? truncateToken(m) : m));
 }
 
 /** Convert a simple glob (`*`, `?`) to an anchored, case-insensitive RegExp. */

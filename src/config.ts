@@ -1,4 +1,6 @@
 import type { Env } from "./types";
+import { DEFAULT_AUDIT_IGNORE } from "./collectors/auditLogs";
+import { DEFAULT_OWN_RULE_SOURCES } from "./lib/classify";
 
 /**
  * Generic scanner paths. Matches here are counted (for the weekly heartbeat)
@@ -63,6 +65,15 @@ export const DEFAULT_IGNORE_PATHS = [
   "/ads.txt",
   "/security.txt",
   "/.well-known/security.txt",
+  // path traversal / LFI probes
+  "*../*",
+  "*..%2f*",
+  "*/proc/self/*",
+  "*/etc/passwd*",
+  "*/win.ini*",
+  // common secret probes under /api
+  "/api/env",
+  "/api/.env*",
 ];
 
 /** Paths that make an otherwise-ordinary blocked request "interesting". */
@@ -80,6 +91,12 @@ export interface Config {
   interestingMethods: string[];
   /** Hits from a single ASN on one fingerprint before it is interesting. */
   asnRepeatThreshold: number;
+  /** Minimum hits/day before a path- or method-based match is reported. */
+  minHits: number;
+  /** GraphQL sources treated as "your own rules" (see classify.ts). */
+  ownRuleSources: string[];
+  /** Truncate random-looking hostname labels in notifications. */
+  redactHostnames: boolean;
   /** Re-report a recurring finding when count >= previous * multiplier. */
   volumeJumpMultiplier: number;
   /** Ignore volume jumps where the new count is below this. */
@@ -97,6 +114,9 @@ export interface Config {
   maxZonesPerRun: number;
   /** Countries considered "normal" for logins; empty = learn from history only. */
   loginHomeCountries: string[];
+  /** audit entries whose description contains any of these are ignored */
+  auditIgnore: string[];
+  auditIncludeSystem: boolean;
 }
 
 function list(v: unknown): string[] {
@@ -150,6 +170,9 @@ export function loadConfig(env: Env): Config {
       : ["POST", "PUT", "PATCH", "DELETE"]
     ).map((m) => m.toUpperCase()),
     asnRepeatThreshold: num(env.ASN_REPEAT_THRESHOLD, 50),
+    minHits: num(env.MIN_HITS, 3),
+    ownRuleSources: list(env.OWN_RULE_SOURCES).length ? list(env.OWN_RULE_SOURCES) : DEFAULT_OWN_RULE_SOURCES,
+    redactHostnames: env.REDACT_HOSTNAMES === undefined ? true : bool(env.REDACT_HOSTNAMES),
     volumeJumpMultiplier: num(env.VOLUME_JUMP_MULTIPLIER, 3),
     volumeJumpMinCount: num(env.VOLUME_JUMP_MIN_COUNT, 20),
     forgetAfterDays: num(env.FORGET_AFTER_DAYS, 30),
@@ -160,5 +183,10 @@ export function loadConfig(env: Env): Config {
     disabledCollectors: list(env.DISABLED_COLLECTORS),
     maxZonesPerRun: num(env.MAX_ZONES_PER_RUN, 10),
     loginHomeCountries: list(env.LOGIN_HOME_COUNTRIES).map((c) => c.toUpperCase()),
+    auditIgnore: [
+      ...(list(env.AUDIT_IGNORE).length ? list(env.AUDIT_IGNORE) : DEFAULT_AUDIT_IGNORE),
+      ...list(env.AUDIT_EXTRA_IGNORE),
+    ],
+    auditIncludeSystem: bool(env.AUDIT_INCLUDE_SYSTEM),
   };
 }

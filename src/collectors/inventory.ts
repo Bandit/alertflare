@@ -14,6 +14,7 @@
  * Record contents (origin IPs) are deliberately not stored or reported.
  */
 import { dashLink } from "../cf/zones";
+import { redactHost } from "../lib/normalise";
 import type { Collector, CollectorStats, Finding, ZoneRef } from "../types";
 
 interface DnsRecord {
@@ -52,7 +53,8 @@ export function snapshotFrom(name: string, records: DnsRecord[], ssl: string | u
   return { name, ssl, records: out };
 }
 
-export function diffSnapshots(prev: ZoneSnapshot, next: ZoneSnapshot, date: string): Finding[] {
+export function diffSnapshots(prev: ZoneSnapshot, next: ZoneSnapshot, date: string, redact = true): Finding[] {
+  const show = (n: string) => (redact ? redactHost(n) : n);
   const zone = next.name;
   const f: Finding[] = [];
   const link = dashLink(zone, "dns/records");
@@ -68,7 +70,8 @@ export function diffSnapshots(prev: ZoneSnapshot, next: ZoneSnapshot, date: stri
   });
 
   for (const [key, proxied] of Object.entries(next.records)) {
-    const [name, type] = key.split("|") as [string, string];
+    const [rawName, type] = key.split("|") as [string, string];
+    const name = show(rawName);
     if (!(key in prev.records)) {
       const exposes = !proxied && PROXY_TYPES.has(type);
       f.push(
@@ -85,7 +88,8 @@ export function diffSnapshots(prev: ZoneSnapshot, next: ZoneSnapshot, date: stri
   }
   for (const key of Object.keys(prev.records)) {
     if (!(key in next.records)) {
-      const [name, type] = key.split("|") as [string, string];
+      const [rawName, type] = key.split("|") as [string, string];
+      const name = show(rawName);
       f.push(mk(`removed|${key}`, "info", `DNS record removed: ${name} (${type})`));
     }
   }
@@ -152,9 +156,9 @@ export const inventory: Collector = {
       const ssl = await cf.get<{ value: string }>(`/zones/${z.id}/settings/ssl`).then((r) => r.value).catch(() => undefined);
       const snap = snapshotFrom(z.name, records, ssl);
       const old = prev.zones[z.id];
-      if (old) findings.push(...diffSnapshots(old, snap, date));
+      if (old) findings.push(...diffSnapshots(old, snap, date, ctx.config.redactHostnames));
       state.zones[z.id] = snap;
-      stats[z.name] = { records: Object.keys(snap.records).length, unproxied: Object.values(snap.records).filter((p) => !p).length };
+      stats[z.name] = { records: Object.keys(snap.records).length, unproxied: Object.entries(snap.records).filter(([k, p]) => !p && PROXY_TYPES.has(k.split("|")[1]!)).length };
       processed++;
     }
     state.cursor = processed === picked.length ? nextCursor : (prev.cursor + processed) % Math.max(1, zones.length);

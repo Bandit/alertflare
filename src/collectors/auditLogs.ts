@@ -36,7 +36,30 @@ export interface AuditEntry {
 export interface AuditState {
   /** actor (email or id) -> known login IPs */
   loginIps: Record<string, string[]>;
+  /** end of the last daily window (ISO), so daily windows never overlap */
+  dailyUntil?: string;
 }
+
+/**
+ * Data-plane activity that the audit log records as "create"/"update" but
+ * which is not a configuration change. Case-insensitive substring match on
+ * action.description. Override with AUDIT_IGNORE / extend with
+ * AUDIT_EXTRA_IGNORE.
+ */
+export const DEFAULT_AUDIT_IGNORE = [
+  "Query D1 Database",
+  "Execute an Analytics Engine SQL query",
+  "Upload Object",
+  "Upload Worker Assets",
+  "Create Worker Assets Upload Session",
+];
+
+/**
+ * Actor types whose entries are side effects of an action already logged
+ * for a user (DNS records created by Email Routing, certificate renewals,
+ * Wrangler asset uploads). Include them with AUDIT_INCLUDE_SYSTEM=true.
+ */
+const SYSTEM_ACTORS = new Set(["system", "delegated_service"]);
 
 const MAX_IPS_PER_ACTOR = 30;
 
@@ -92,10 +115,29 @@ export function classifyEntry(e: AuditEntry, state: AuditState, seeding: boolean
   return { severity: failed ? "warning" : "info", category, report: true };
 }
 
+function fnv1a(s: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(16);
+}
+
+/** Keep readable ids ("http_request_firewall_custom"), truncate random ones. */
+export function shortId(id: string): string {
+  if (/\d/.test(id) && id.length > 8) return truncateToken(id);
+  return id.length > 40 ? truncateToken(id, 40) : id;
+}
+
+function describe(e: AuditEntry): string {
+  return e.action?.description || [e.resource?.product, e.resource?.type].filter(Boolean).join(" ") || "resource";
+}
+
 export function entryToFinding(e: AuditEntry, c: Classified, timezone: string): Finding {
   const verb = e.action?.type ?? "change";
-  const what = e.action?.description || [e.resource?.product, e.resource?.type].filter(Boolean).join(" ") || "resource";
-  const resId = e.resource?.id ? ` ${truncateToken(String(e.resource.id))}` : "";
+  const what = describe(e);
+  const resId = e.resource?.id ? ` ${shortId(String(e.resource.id))}` : "";
   const when = e.action?.time
     ? new Intl.DateTimeFormat("en-GB", { timeZone: timezone, dateStyle: "short", timeStyle: "short" }).format(new Date(e.action.time))
     : "";
@@ -122,19 +164,41 @@ export function entryToFinding(e: AuditEntry, c: Classified, timezone: string): 
   };
 }
 
+export interface ProcessOptions {
+  urgentOnly: boolean;
+  timezone: string;
+  ignore?: string[];
+  includeSystem?: boolean;
+  /** Used to date info rollups; defaults to the latest entry time. */
+  now?: Date;
+}
+
+export function isIgnored(e: AuditEntry, ignore: string[], includeSystem: boolean): boolean {
+  if (!includeSystem && SYSTEM_ACTORS.has((e.actor?.type ?? "").toLowerCase())) return true;
+  const d = (e.action?.description ?? "").toLowerCase();
+  return ignore.some((i) => d.includes(i.toLowerCase()));
+}
+
 export function processEntries(
   entries: AuditEntry[],
   prev: AuditState | undefined,
-  opts: { urgentOnly: boolean; timezone: string },
+  opts: ProcessOptions,
 ): { findings: Finding[]; state: AuditState; stats: CollectorStats } {
   const seeding = !prev;
-  const state: AuditState = { loginIps: { ...(prev?.loginIps ?? {}) } };
-  const stats: CollectorStats = { changes: 0, logins: 0, urgent: 0 };
+  const state: AuditState = { ...prev, loginIps: { ...(prev?.loginIps ?? {}) } };
+  const stats: CollectorStats = { changes: 0, logins: 0, urgent: 0, ignored: 0 };
   const findings: Finding[] = [];
+  const ignore = opts.ignore ?? DEFAULT_AUDIT_IGNORE;
+  /** info-level entries, rolled up per zone/actor/product */
+  const rollups = new Map<string, { zone: string; actor: string; product: string; counts: Map<string, number>; ids: string[] }>();
   // Oldest first so "new IP" is judged in order.
   const sorted = [...entries].sort((a, b) => (a.action?.time ?? "").localeCompare(b.action?.time ?? ""));
   for (const e of sorted) {
     if ((e.action?.type ?? "").toLowerCase() === "view") continue;
+    if (isIgnored(e, ignore, !!opts.includeSystem)) {
+      stats.ignored!++;
+      continue;
+    }
     const c = classifyEntry(e, state, seeding);
     if (c.category === "login") {
       stats.logins!++;
@@ -151,7 +215,36 @@ export function processEntries(
     if (!c.report) continue;
     if (c.severity === "urgent") stats.urgent!++;
     if (opts.urgentOnly && c.severity !== "urgent") continue;
+    if (c.severity === "info") {
+      const zone = e.zone?.name || "account";
+      const actor = actorLabel(e);
+      const product = e.resource?.product || "other";
+      const key = `${zone}|${actor}|${product}`;
+      let r = rollups.get(key);
+      if (!r) rollups.set(key, (r = { zone, actor, product, counts: new Map(), ids: [] }));
+      r.ids.push(e.id);
+      const what = describe(e) + ((e.action?.result ?? "").toLowerCase() === "failure" ? " (FAILED)" : "");
+      r.counts.set(what, (r.counts.get(what) ?? 0) + 1);
+      continue;
+    }
     findings.push(entryToFinding(e, c, opts.timezone));
+  }
+
+  for (const [key, r] of rollups) {
+    const total = [...r.counts.values()].reduce((a, b) => a + b, 0);
+    const parts = [...r.counts.entries()].sort((a, b) => b[1] - a[1]).map(([d, n]) => (n > 1 ? `${d} ×${n}` : d));
+    findings.push({
+      source: "audit-logs",
+      // Keyed on the entries themselves: re-fetching the same entries can
+      // never produce a second report.
+      fingerprint: `rollup|${key}|${fnv1a(r.ids.sort().join(","))}`,
+      kind: "event",
+      severity: "info",
+      zone: r.zone,
+      summary: redactText(`${r.actor}: ${total} ${r.product} change${total === 1 ? "" : "s"}`),
+      details: [redactText(parts.slice(0, 6).join(", ") + (parts.length > 6 ? `, +${parts.length - 6} more` : ""))],
+      link: dashLink(undefined, "audit-log"),
+    });
   }
   return { findings, state, stats };
 }
@@ -163,8 +256,14 @@ export const auditLogs: Collector = {
 
   async collect(ctx) {
     const hourly = ctx.schedule === "hourly";
-    const windowMs = (hourly ? 2 : 25) * 3_600_000;
-    const since = new Date(ctx.now.getTime() - windowMs).toISOString();
+    const prev = ctx.previousState as AuditState | undefined;
+    // Daily: continue from the end of the previous daily window (max 3 days
+    // back), so rollup counts never double-count. Hourly: last 2h; urgent
+    // items are deduped by entry id.
+    const floor = ctx.now.getTime() - (hourly ? 2 : 72) * 3_600_000;
+    const fromPrev = !hourly && prev?.dailyUntil ? Date.parse(prev.dailyUntil) : NaN;
+    const sinceMs = Number.isFinite(fromPrev) ? Math.max(fromPrev, floor) : ctx.now.getTime() - (hourly ? 2 : 24) * 3_600_000;
+    const since = new Date(sinceMs).toISOString();
     const before = ctx.now.toISOString();
     const base = `/accounts/${ctx.env.CF_ACCOUNT_ID}/logs/audit?since=${encodeURIComponent(since)}&before=${encodeURIComponent(before)}&limit=1000&direction=desc`;
 
@@ -178,10 +277,14 @@ export const auditLogs: Collector = {
       if (!cursor || (env.result ?? []).length === 0) break;
     }
 
-    const { findings, state, stats } = processEntries(entries, ctx.previousState as AuditState | undefined, {
+    const { findings, state, stats } = processEntries(entries, prev, {
       urgentOnly: hourly,
       timezone: ctx.config.timezone,
+      ignore: ctx.config.auditIgnore,
+      includeSystem: ctx.config.auditIncludeSystem,
+      now: ctx.now,
     });
+    if (!hourly) state.dailyUntil = before;
     return { findings, newState: state, stats: hourly ? undefined : { account: stats } };
   },
 };

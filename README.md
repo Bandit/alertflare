@@ -14,9 +14,8 @@ nothing new happened, it sends **nothing**. A weekly heartbeat proves it is
 still alive.
 
 - Daily digest: at the hour you set in the daily cron (see §3), grouped by severity and then by zone.
-- Hourly urgent check: API tokens, account members, failed logins and logins
-  from new IPs. It sends only when something new happens and never repeats
-  an item.
+- Hourly urgent check: API tokens and account members. It sends only when
+  something new happens and never repeats an item.
 - Weekly heartbeat on Monday: totals per collector and per zone, plus any
   collector failures.
 
@@ -52,7 +51,7 @@ These are **not** available natively on Free or Pro, so alertflare covers them:
 | Collector | Schedule | Data source | Free | Pro |
 |---|---|---|---|---|
 | `security-events` | daily | GraphQL `firewallEventsAdaptive*` | ✅ raw sampled events, up to 1,000 per zone | ✅ server-side aggregation (`firewallEventsAdaptiveGroups`) |
-| `audit-logs` | daily + hourly (urgent only) | Audit Logs **v2** `GET /accounts/{id}/logs/audit` (GA since 2026‑03; all plans; 18-month retention) | ✅ | ✅ |
+| `audit-logs` | daily + hourly (urgent only); dashboard logins are not in account audit logs (see §9) | Audit Logs **v2** `GET /accounts/{id}/logs/audit` (GA since 2026‑03; all plans; 18-month retention) | ✅ | ✅ |
 | `access` | daily | `GET /accounts/{id}/access/logs/access_requests` | ✅ (Zero Trust Free keeps only **24 h** of logs) | ✅ |
 | `inventory` | daily | `GET /zones/{id}/dns_records`, `GET /zones/{id}/settings/ssl` | ✅ | ✅ |
 | ~~tunnel health~~ | | | Use the native Tunnel Health Alert | |
@@ -73,7 +72,8 @@ Go to Dashboard → My Profile → API Tokens → **Create Token** → *Create C
 
 | Scope | Permission | Access | Needed by | Why |
 |---|---|---|---|---|
-| Account | **Account Analytics** | Read | security-events | Required by the GraphQL Analytics API, per the docs page "Configure an Analytics API token". |
+| Zone | **Analytics** | Read | security-events | **Required** for zone-scoped GraphQL queries. Verified on a live account: without it, GraphQL returns "zones … are not authorized". |
+| Account | **Account Analytics** | Read | security-events | The docs page "Configure an Analytics API token" names this one. It may not be needed when Zone Analytics Read is present; it is harmless and read-only. |
 | Account | **Account Settings** | Read | audit-logs | Required by both v1 and v2 audit log endpoints. |
 | Account | **Access: Audit Logs** | Read | access | Access authentication logs. Omit it if you don't use Access, and add `access` to `DISABLED_COLLECTORS`. |
 | Zone | **Zone** | Read | all | Lists the zones in the account. |
@@ -82,10 +82,8 @@ Go to Dashboard → My Profile → API Tokens → **Create Token** → *Create C
 
 - **Account Resources:** *Include → your account* only.
 - **Zone Resources:** *Include → All zones from an account → your account*.
-- **Not needed:** any Edit/Write permission, Cloudflare Tunnel Read (no tunnel
-  collector), and Zone Analytics Read.
-- If the GraphQL queries return a permission error on your account, add
-  *Zone → Analytics → Read*. The docs only name the Account-level permission.
+- **Not needed:** any Edit/Write permission, or Cloudflare Tunnel Read (there
+  is no tunnel collector).
 
 Store the token as a secret. Never put it in `wrangler.jsonc` or `.dev.vars.example`.
 
@@ -222,6 +220,9 @@ npm run typecheck
 | `HEARTBEAT_DAY` | `mon` | Local weekday for the heartbeat. |
 | `INTERESTING_PATHS` | `/api/*` | Blocked requests to these paths are always reported, as `warning`. |
 | `INTERESTING_METHODS` | `POST,PUT,PATCH,DELETE` | Blocked requests with these methods are always reported, as `warning`. |
+| `MIN_HITS` | `3` | Minimum hits per day before a path- or method-based match is reported. One-off scanner probes are 1–3 hits; a broken integration retries all day (about 90 a day). Set it to `1` if you have webhooks that fire only once a day. |
+| `OWN_RULE_SOURCES` | `firewallCustom,firewallrules,ratelimit,ratelimitingrules,ip,iprange,asn,country,zonelockdown,uablock` | Security services whose rules *you* wrote. See §6. |
+| `REDACT_HOSTNAMES` | `true` | Truncate random-looking hostname labels in emails, e.g. `app-k3x9….example.com`. |
 | `ASN_REPEAT_THRESHOLD` | `50` | Hits per day on one fingerprint (which includes the ASN) before an otherwise ordinary block is reported, as `info`. |
 | `VOLUME_JUMP_MULTIPLIER` | `3` | Re-report a known fingerprint when its daily count is at least this multiple of the count at its last report… |
 | `VOLUME_JUMP_MIN_COUNT` | `20` | …and is at least this many hits. |
@@ -230,6 +231,9 @@ npm run typecheck
 | `EXTRA_IGNORE_PATHS` | | Adds entries to the built-in list. |
 | `ZONES_INCLUDE` / `ZONES_EXCLUDE` | | Comma-separated zone names. |
 | `DISABLED_COLLECTORS` | | For example `access`. |
+| `AUDIT_IGNORE` | *(built-in list)* | Replaces the list of audit descriptions to ignore. Matching is a case-insensitive substring match. |
+| `AUDIT_EXTRA_IGNORE` | | Adds to that list, for example `Upload Version,Create Worker Deployment` if Worker deploys are routine for you. |
+| `AUDIT_INCLUDE_SYSTEM` | `false` | Include entries by `system` and `delegated_service` actors. |
 | `MAX_ZONES_PER_RUN` | `10` | Inventory zones checked per daily run. Zones rotate (see §8). |
 
 ## 6. Noise rules
@@ -251,9 +255,26 @@ Each fingerprint gets one of three verdicts:
 - **Noise:** the path matches the ignore list. It is never alerted, only
   counted in the heartbeat. Most of this noise is also filtered out
   server-side, with `_notlike` filters, to save rows.
-- **Interesting:** the path matches `INTERESTING_PATHS`, the method matches
-  `INTERESTING_METHODS`, or the count is at least `ASN_REPEAT_THRESHOLD`.
+- **Interesting:** depends on who wrote the rule.
+  - **Your own rules** (custom rules, rate limits, IP/ASN/country access rules;
+    see `OWN_RULE_SOURCES`). A block here may be your rule catching
+    legitimate traffic, which is the broken-webhook failure mode. Interesting when
+    the path matches `INTERESTING_PATHS` **or** the method matches
+    `INTERESTING_METHODS`, with at least `MIN_HITS` hits.
+  - **Cloudflare's detections** (managed rulesets, bot features, …). A block
+    here usually means an attack signature matched. Interesting only when the
+    path **and** the method both match, with at least `MIN_HITS` hits. Exploit
+    probes such as `POST /` matching a CVE signature are counted, not reported.
+  - **Either kind,** when the count is at least `ASN_REPEAT_THRESHOLD`.
 - **Boring:** everything else. It is counted only.
+
+Severity:
+
+| Severity | When |
+|---|---|
+| **urgent** | An interesting path, a write method **and** `ASN_REPEAT_THRESHOLD` hits: an integration retrying and being blocked all day. |
+| **warning** | An interesting path or a write method. |
+| **info** | Volume only. |
 
 Only these actions count as mitigations: block, challenge, JS challenge,
 managed challenge and connection close. Solved challenges, `log`, `skip`,
@@ -270,21 +291,34 @@ across `/`. See `DEFAULT_IGNORE_PATHS` in `src/config.ts`.
 /owa/*  /ecp/*  /autodiscover*  /remote/login*  /geoserver*  /solr/*  /hnap1*  /sdk  /shell*  /console*
 /server-status*  /config.json  /config.js  /backup*  *.sql  *.bak  *.zip  *.tar.gz
 /robots.txt  /sitemap.xml  /favicon.ico  /ads.txt  /security.txt  /.well-known/security.txt
+*../*  *..%2f*  */proc/self/*  */etc/passwd*  */win.ini*  /api/env  /api/.env*
 ```
 
 **Audit logs:**
 
-- Every non-`view` change is reported once.
+- **Ignored:** data-plane activity that the audit log records as "create"
+  but which isn't configuration:
+  - D1 queries
+  - Analytics Engine SQL queries
+  - R2 object uploads
+  - Worker asset uploads
+
+  Entries by `system` and `delegated_service` actors are ignored too. These are
+  side effects of changes already logged for a person, such as DNS records
+  created by Email Routing, certificate renewals and Wrangler's asset uploads.
+  Set `AUDIT_IGNORE`, `AUDIT_EXTRA_IGNORE` or `AUDIT_INCLUDE_SYSTEM` to change
+  this.
+- Every other change is reported once. `info` items are **rolled up** into one
+  line per actor and product, for example "you: 5 workers changes — Upload
+  Version ×2, Create Worker Deployment ×2, …". Each daily run continues from
+  where the previous one stopped, so nothing is counted twice.
 - These are `urgent` and are also sent by the hourly check:
   - creating or changing an API token;
-  - member or role changes;
-  - failed logins;
-  - logins from an IP not seen before for that user.
+  - member or role changes.
 - `warning`: changes to WAF, rulesets, Access and tunnels.
 - `info`: everything else.
-- The first run learns your login IPs silently.
-- The audit API has no country field, so new-country detection isn't possible.
-  New IP is the signal used instead.
+- Login detection (new IP, failed login) is implemented, but it never fires in
+  practice, because account audit logs don't contain dashboard logins (see §9).
 
 **Access:** denied logins are grouped by application, identity and country.
 A group with 10 or more denials becomes `warning`.
@@ -401,14 +435,19 @@ API calls per daily run, with N zones:
   `action` spellings aren't documented, so alertflare matches patterns instead
   of hard-coding them. The error that means "Access isn't set up" isn't
   documented either; alertflare treats a 404 or a "not enabled" message as
-  "skip" and anything else as a failure. Whether audit logs v2 records ordinary
-  dashboard logins isn't confirmed. The first `DRY_RUN` against your real
-  account settles all three.
+  "skip" and anything else as a failure.
+- **Dashboard logins are not in account audit logs.** On a live account
+  (November 2026), no login entries appeared in 30 days of the v1 API
+  (`action.type=login`) or in the v2 API. Logins are user-level events, not
+  account-level ones, so a token scoped to the account can't see them.
 
 ## 10. Privacy in notifications
 
 - Webhook IDs and other token-like path segments are cut to their first 8
   characters, for example `3f9a12bc…`. Query strings are dropped.
+- Random-looking hostname labels, such as an unguessable
+  subdomain, are cut the same way (`REDACT_HOSTNAMES`). The full hostname is
+  kept only in KV, as part of the fingerprint.
 - Audit request and response bodies are never read into messages. They can
   contain new token values.
 - Text that looks like `Authorization`, `Cookie` or `Bearer` values is redacted.

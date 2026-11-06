@@ -61,6 +61,9 @@ function describeError(err: unknown): string {
     if (err.status === 401 || err.status === 403 || [9106, 9109, 10000, 10001].some((c) => err.codes.includes(c))) {
       return `permission denied: check the API token's permissions (${err.message})`;
     }
+    if (/not authori[sz]ed/i.test(err.message)) {
+      return `permission denied: the token needs Zone > Analytics > Read (${err.message})`;
+    }
     return err.message;
   }
   return err instanceof Error ? err.message : String(err);
@@ -167,6 +170,8 @@ export async function run(env: Env, schedule: Schedule, now: Date, opts: RunOpti
   }
   for (const p of pending) await writeJson(kv, p.key, p.value, p.ttl);
 
+  await kv.put(`lastrun:${schedule}`, now.toISOString());
+
   if (schedule === "daily") {
     if (Object.keys(dayStats).length) {
       await writeJson(kv, `stats:${local.date}`, dayStats, 9 * DAY);
@@ -178,7 +183,6 @@ export async function run(env: Env, schedule: Schedule, now: Date, opts: RunOpti
     }
   }
 
-  await kv.put(`lastrun:${schedule}`, now.toISOString());
   report.reported = toSend;
   report.subrequests = cf.used;
   return report;
