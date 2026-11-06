@@ -27,7 +27,7 @@
     { "name": "EMAIL" }
   ],
   "vars": {
-    "DRY_RUN": "true",
+    "DRY_RUN": "false",
     // "postmark" (needs POSTMARK_SERVER_TOKEN secret) or "cloudflare" (send_email binding)
     "NOTIFIER": "postmark",
     "POSTMARK_MESSAGE_STREAM": "outbound",
