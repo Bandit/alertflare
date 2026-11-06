@@ -1,0 +1,11 @@
+{
+  "success": true,
+  "errors": [],
+  "messages": [],
+  "result": [
+    { "action": "login", "allowed": false, "app_domain": "app.example.test", "app_uid": "df7e2w5f-02b7-4d9d-af26-8d1988fca630", "connection": "onetimepin", "created_at": "2026-11-05T20:10:00Z", "ip_address": "198.51.100.1", "ray_id": "187d944c61940c77", "user_email": "stranger@example.org", "country": "US" },
+    { "action": "login", "allowed": false, "app_domain": "app.example.test", "app_uid": "df7e2w5f-02b7-4d9d-af26-8d1988fca630", "connection": "onetimepin", "created_at": "2026-11-05T20:11:00Z", "ip_address": "198.51.100.2", "ray_id": "187d944c61940c78", "user_email": "Stranger@example.org", "country": "US" },
+    { "action": "login", "allowed": true, "app_domain": "app.example.test", "app_uid": "df7e2w5f-02b7-4d9d-af26-8d1988fca630", "connection": "google", "created_at": "2026-11-05T21:00:00Z", "ip_address": "203.0.113.10", "ray_id": "187d944c61940c79", "user_email": "owner@example.test", "country": "NZ" },
+    { "action": "login", "allowed": false, "app_domain": "grafana.example.test", "app_uid": "a1", "connection": "", "created_at": "2026-11-05T22:00:00Z", "ip_address": "198.51.100.9", "ray_id": "187d944c61940c80", "user_email": "" }
+  ]
+}

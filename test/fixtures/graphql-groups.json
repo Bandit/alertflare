@@ -1,0 +1,24 @@
+{
+  "data": {
+    "viewer": {
+      "zones": [
+        {
+          "zoneTag": "00000000000000000000000000000001",
+          "total": [{ "count": 4210 }],
+          "groups": [
+            { "count": 96, "dimensions": { "action": "block", "source": "firewallCustom", "ruleId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "description": "Block suspicious traffic", "clientRequestHTTPHost": "app.example.test", "clientRequestPath": "/api/webhook/3f9a12bc0d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8", "clientRequestHTTPMethodName": "POST", "clientAsn": "16509", "clientASNDescription": "AMAZON-02", "clientCountryName": "IE" } },
+            { "count": 40, "dimensions": { "action": "block", "source": "firewallCustom", "ruleId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "description": "Block suspicious traffic", "clientRequestHTTPHost": "app.example.test", "clientRequestPath": "/api/webhook/3f9a12bc0d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8", "clientRequestHTTPMethodName": "POST", "clientAsn": "16509", "clientASNDescription": "AMAZON-02", "clientCountryName": "FR" } },
+            { "count": 3000, "dimensions": { "action": "block", "source": "firewallCustom", "ruleId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "description": "Block suspicious traffic", "clientRequestHTTPHost": "app.example.test", "clientRequestPath": "/", "clientRequestHTTPMethodName": "GET", "clientAsn": "14061", "clientASNDescription": "DIGITALOCEAN-ASN", "clientCountryName": "US" } },
+            { "count": 7, "dimensions": { "action": "managed_challenge", "source": "firewallCustom", "ruleId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "description": "Block suspicious traffic", "clientRequestHTTPHost": "app.example.test", "clientRequestPath": "/auth/authorize", "clientRequestHTTPMethodName": "GET", "clientAsn": "4134", "clientASNDescription": "CHINANET-BACKBONE", "clientCountryName": "CN" } },
+            { "count": 12, "dimensions": { "action": "block", "source": "firewallManaged", "ruleId": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "description": "Generic Rules - Command Execution", "clientRequestHTTPHost": "app.example.test", "clientRequestPath": "/.env", "clientRequestHTTPMethodName": "GET", "clientAsn": "14061", "clientASNDescription": "DIGITALOCEAN-ASN", "clientCountryName": "US" } },
+            { "count": 5, "dimensions": { "action": "managed_challenge_interactive_solved", "source": "firewallCustom", "ruleId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "description": "Block suspicious traffic", "clientRequestHTTPHost": "app.example.test", "clientRequestPath": "/api/states", "clientRequestHTTPMethodName": "GET", "clientAsn": "9500", "clientASNDescription": "ONE-NZ", "clientCountryName": "NZ" } }
+          ],
+          "examples": [
+            { "rayName": "8f00aa11bb22cc33", "clientRequestHTTPHost": "app.example.test", "clientRequestPath": "/api/webhook/3f9a12bc0d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8", "clientRequestHTTPMethodName": "POST", "clientAsn": "16509", "source": "firewallCustom", "ruleId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }
+          ]
+        }
+      ]
+    }
+  },
+  "errors": null
+}

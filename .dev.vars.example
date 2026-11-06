@@ -1,0 +1,7 @@
+# Copy to .dev.vars for `wrangler dev`. Never commit .dev.vars.
+CF_API_TOKEN=
+CF_ACCOUNT_ID=
+POSTMARK_SERVER_TOKEN=
+EMAIL_FROM=alertflare@your-domain.example
+EMAIL_TO=you@example.com
+DRY_RUN=true

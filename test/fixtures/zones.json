@@ -1,0 +1,9 @@
+{
+  "success": true,
+  "errors": [],
+  "messages": [],
+  "result_info": { "page": 1, "per_page": 50, "count": 1, "total_count": 1, "total_pages": 1 },
+  "result": [
+    { "id": "00000000000000000000000000000001", "name": "example.test", "status": "active", "plan": { "name": "Pro Website" }, "account": { "id": "acc", "name": "Example" } }
+  ]
+}

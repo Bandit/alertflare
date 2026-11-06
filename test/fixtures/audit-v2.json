@@ -1,0 +1,13 @@
+{
+  "success": true,
+  "errors": [],
+  "result_info": { "count": 6, "cursor": "" },
+  "result": [
+    { "id": "f174be97-19b1-40d6-954d-70cd5fbd52db", "account": { "id": "acc", "name": "Example" }, "action": { "description": "Create API token", "result": "success", "time": "2026-11-05T21:00:00Z", "type": "create" }, "actor": { "id": "u1", "context": "dash", "email": "owner@example.test", "ip_address": "203.0.113.10", "type": "user" }, "raw": { "cf_ray_id": "8f00aa11bb22cc50", "method": "POST", "status_code": 200, "uri": "/user/tokens" }, "resource": { "id": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6", "product": "api_tokens", "type": "token", "request": { "secret": "should-never-appear" }, "response": { "value": "SECRET-TOKEN-VALUE-SHOULD-NEVER-APPEAR" } } },
+    { "id": "2a8e7c1d-0000-4000-8000-000000000002", "action": { "description": "Update DNS record", "result": "success", "time": "2026-11-05T22:00:00Z", "type": "update" }, "actor": { "email": "owner@example.test", "ip_address": "203.0.113.10", "context": "dash", "type": "user" }, "raw": { "cf_ray_id": "8f00aa11bb22cc51" }, "resource": { "id": "9988776655443322110099887766554433", "product": "dns_records", "type": "dns_record" }, "zone": { "id": "z", "name": "example.test" } },
+    { "id": "2a8e7c1d-0000-4000-8000-000000000003", "action": { "description": "Login", "result": "success", "time": "2026-11-05T20:00:00Z", "type": "login" }, "actor": { "email": "owner@example.test", "ip_address": "203.0.113.10", "context": "dash", "type": "user" }, "resource": { "product": "login", "type": "user" } },
+    { "id": "2a8e7c1d-0000-4000-8000-000000000004", "action": { "description": "Login", "result": "success", "time": "2026-11-05T23:00:00Z", "type": "login" }, "actor": { "email": "owner@example.test", "ip_address": "198.51.100.77", "context": "dash", "type": "user" }, "resource": { "product": "login", "type": "user" } },
+    { "id": "2a8e7c1d-0000-4000-8000-000000000005", "action": { "description": "List zones", "result": "success", "time": "2026-11-05T23:30:00Z", "type": "view" }, "actor": { "token_id": "tok", "token_name": "alertflare", "context": "api_token", "type": "user" }, "resource": { "product": "zones", "type": "zone" } },
+    { "id": "2a8e7c1d-0000-4000-8000-000000000006", "action": { "description": "Update custom ruleset", "result": "success", "time": "2026-11-05T23:40:00Z", "type": "update" }, "actor": { "email": "owner@example.test", "ip_address": "203.0.113.10", "context": "dash", "type": "user" }, "resource": { "id": "rs1", "product": "rulesets", "type": "ruleset" }, "zone": { "id": "z", "name": "example.test" } }
+  ]
+}

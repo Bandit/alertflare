@@ -1,0 +1,12 @@
+{
+  "success": true,
+  "errors": [],
+  "messages": [],
+  "result_info": { "page": 1, "per_page": 1000, "count": 4, "total_count": 4, "total_pages": 1 },
+  "result": [
+    { "id": "r1", "name": "example.test", "type": "A", "content": "192.0.2.1", "proxiable": true, "proxied": true, "ttl": 1 },
+    { "id": "r2", "name": "app.example.test", "type": "CNAME", "content": "tunnel-id.cfargotunnel.com", "proxiable": true, "proxied": true, "ttl": 1 },
+    { "id": "r3", "name": "mail.example.test", "type": "MX", "content": "route1.mx.cloudflare.net", "proxiable": false, "proxied": false, "ttl": 1, "priority": 10 },
+    { "id": "r4", "name": "nas.example.test", "type": "A", "content": "192.0.2.50", "proxiable": true, "proxied": false, "ttl": 1 }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "data": {
+    "viewer": {
+      "zones": [
+        {
+          "zoneTag": "00000000000000000000000000000002",
+          "total": [{ "count": 25 }],
+          "events": [
+            { "action": "block", "source": "firewallCustom", "ruleId": "cccccccccccccccccccccccccccccccc", "description": "Block bad bots", "clientRequestHTTPHost": "blog.example.test", "clientRequestPath": "/api/v1/items/12345", "clientRequestHTTPMethodName": "GET", "clientAsn": "13335", "clientASNDescription": "CLOUDFLARENET", "clientCountryName": "US", "rayName": "8f00aa11bb22cc44", "sampleInterval": 1 },
+            { "action": "block", "source": "firewallCustom", "ruleId": "cccccccccccccccccccccccccccccccc", "description": "Block bad bots", "clientRequestHTTPHost": "blog.example.test", "clientRequestPath": "/api/v1/items/67890", "clientRequestHTTPMethodName": "GET", "clientAsn": "13335", "clientASNDescription": "CLOUDFLARENET", "clientCountryName": "US", "rayName": "8f00aa11bb22cc45", "sampleInterval": 2 },
+            { "action": "log", "source": "firewallCustom", "ruleId": "dddddddddddddddddddddddddddddddd", "description": "Log only", "clientRequestHTTPHost": "blog.example.test", "clientRequestPath": "/api/v1/items", "clientRequestHTTPMethodName": "GET", "clientAsn": "13335", "clientASNDescription": "CLOUDFLARENET", "clientCountryName": "US", "rayName": "8f00aa11bb22cc46", "sampleInterval": 1 },
+            { "action": "block", "source": "firewallCustom", "ruleId": "cccccccccccccccccccccccccccccccc", "description": "Block bad bots", "clientRequestHTTPHost": "blog.example.test", "clientRequestPath": "/WP-LOGIN.PHP", "clientRequestHTTPMethodName": "POST", "clientAsn": "14061", "clientASNDescription": "DIGITALOCEAN-ASN", "clientCountryName": "SG", "rayName": "8f00aa11bb22cc47", "sampleInterval": 1 }
+          ]
+        }
+      ]
+    }
+  },
+  "errors": null
+}

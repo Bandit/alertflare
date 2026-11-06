@@ -1,0 +1,55 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "alertflare",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-01",
+  // No public URL: this Worker only runs on a schedule.
+  "workers_dev": false,
+  "preview_urls": false,
+  "triggers": {
+    // UTC only: pick the hour that suits your timezone (README §3).
+    // Keep in sync with CRONS in src/index.ts.
+    "crons": ["0 19 * * *", "30 * * * *"]
+  },
+  "kv_namespaces": [
+    // Dashboard name: "alertflare-state" (Storage & Databases → KV).
+    // Holds alertflare's "already reported" fingerprints, snapshots and
+    // heartbeat stats. Safe to delete: worst case, current findings are
+    // re-reported once and baselines are re-learned.
+    // Created with: npx wrangler kv namespace create alertflare-state
+    // Paste the returned id below (namespace ids are not secret, but this
+    // repo ships a placeholder so nothing account-specific is committed).
+    { "binding": "ALERTFLARE_STATE", "id": "REPLACE_WITH_KV_NAMESPACE_ID" }
+  ],
+  "send_email": [
+    // No destination pinned here so no address is committed; the recipient
+    // must be a verified Email Routing destination address.
+    { "name": "EMAIL" }
+  ],
+  "vars": {
+    "DRY_RUN": "true",
+    // "postmark" (needs POSTMARK_SERVER_TOKEN secret) or "cloudflare" (send_email binding)
+    "NOTIFIER": "postmark",
+    "POSTMARK_MESSAGE_STREAM": "outbound",
+    "HEARTBEAT_DAY": "mon",
+    "ASN_REPEAT_THRESHOLD": "50",
+    "VOLUME_JUMP_MULTIPLIER": "3",
+    "VOLUME_JUMP_MIN_COUNT": "20",
+    "FORGET_AFTER_DAYS": "30",
+    "MAX_ZONES_PER_RUN": "10",
+    "EXTRA_IGNORE_PATHS": "",
+    "INTERESTING_PATHS": "/api/*",
+    "ZONES_INCLUDE": "",
+    "ZONES_EXCLUDE": "",
+    "DISABLED_COLLECTORS": ""
+  },
+  "observability": { "enabled": true }
+  // Secrets (never in this file):
+  //   CF_API_TOKEN   read-only API token (see README)
+  //   CF_ACCOUNT_ID  optional; saves one API call per run
+  //   POSTMARK_SERVER_TOKEN  Postmark server API token (NOTIFIER=postmark)
+  //   EMAIL_FROM     Postmark: confirmed sender signature/domain.
+  //                  Cloudflare: an address on your Email Routing domain.
+  //   EMAIL_TO       recipient(s), comma separated. Cloudflare: must be
+  //                  verified Email Routing destination addresses.
+}
