@@ -17,9 +17,9 @@
     // heartbeat stats. Safe to delete: worst case, current findings are
     // re-reported once and baselines are re-learned.
     // Created with: npx wrangler kv namespace create alertflare-state
-    // Paste the returned id below (namespace ids are not secret, but this
-    // repo ships a placeholder so nothing account-specific is committed).
-    { "binding": "ALERTFLARE_STATE", "id": "REPLACE_WITH_KV_NAMESPACE_ID" }
+    // The id is NOT a secret: it is a random identifier that reveals nothing
+    // about the account and is useless without an API token for it.
+    { "binding": "ALERTFLARE_STATE", "id": "a3d57e0fef3c4fc991ed7a53ea50085c" }
   ],
   "send_email": [
     // No destination pinned here so no address is committed; the recipient
@@ -41,7 +41,10 @@
     "INTERESTING_PATHS": "/api/*",
     "ZONES_INCLUDE": "",
     "ZONES_EXCLUDE": "",
-    "DISABLED_COLLECTORS": ""
+    "DISABLED_COLLECTORS": "",
+    // Routine Worker deploys (wrangler deploy produces all four per deploy).
+    // Cron trigger and secret changes are still reported.
+    "AUDIT_EXTRA_IGNORE": "Upload Version,Create Worker Deployment,Patch Worker Script Settings,Update Worker Script Subdomain"
   },
   "observability": { "enabled": true }
   // Secrets (never in this file):

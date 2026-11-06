@@ -104,7 +104,8 @@ the token, which costs one extra API call per run.
 npx wrangler kv namespace create alertflare-state
 ```
 
-Paste the returned `id` into `wrangler.jsonc`, replacing `REPLACE_WITH_KV_NAMESPACE_ID`.
+Put the returned `id` into `wrangler.jsonc`. In this repo it's already set to the
+production namespace. It's committed on purpose: a namespace ID isn't a secret.
 
 In the dashboard (Storage & Databases → KV), the namespace appears as `alertflare-state`.
 The code reaches it through the binding `ALERTFLARE_STATE`. Deleting the namespace is safe:
