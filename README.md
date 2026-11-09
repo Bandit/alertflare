@@ -405,6 +405,12 @@ A group with 10 or more denials becomes `warning`.
 
 - Reported: new or removed DNS records, proxied ↔ DNS-only flips, SSL/TLS mode
   changes, and zones added or removed.
+- **New tunnel hostnames** (CNAMEs to `*.cfargotunnel.com`, either new or
+  re-pointed) are a `warning`: "New tunnel hostname …: check your WAF rules cover it".
+  WAF rules can't match "traffic going to a tunnel", so a rule meant
+  only for tunnels must list their hostnames, for example
+  `http.host in {"app.example.com" …}`. This reminder keeps that list complete.
+  Only the hostname is stored, never the tunnel ID.
 - DNS-only A, AAAA or CNAME records, and SSL dropping to `off` or `flexible`,
   are `warning`.
 - The first run takes a baseline silently.

@@ -20,6 +20,7 @@ import type { Collector, CollectorStats, Finding, ZoneRef } from "../types";
 interface DnsRecord {
   name: string;
   type: string;
+  content?: string;
   proxied?: boolean;
   proxiable?: boolean;
 }
@@ -29,6 +30,12 @@ export interface ZoneSnapshot {
   ssl?: string;
   /** "name|type" -> proxied (true/false); multiple records collapse to "any proxied=false" */
   records: Record<string, boolean>;
+  /**
+   * Hostnames routed to a Cloudflare Tunnel (CNAME -> *.cfargotunnel.com).
+   * Only the hostname is kept, never the tunnel id. Undefined in snapshots
+   * taken before this field existed.
+   */
+  tunnels?: string[];
 }
 
 export interface InventoryState {
@@ -42,6 +49,10 @@ const RESERVE = 4;
 const WEAK_SSL = new Set(["off", "flexible"]);
 const PROXY_TYPES = new Set(["A", "AAAA", "CNAME"]);
 
+export function isTunnelRecord(r: Pick<DnsRecord, "type" | "content">): boolean {
+  return r.type === "CNAME" && /\.cfargotunnel\.com\.?$/i.test(r.content ?? "");
+}
+
 export function snapshotFrom(name: string, records: DnsRecord[], ssl: string | undefined): ZoneSnapshot {
   const out: Record<string, boolean> = {};
   for (const r of records) {
@@ -50,7 +61,8 @@ export function snapshotFrom(name: string, records: DnsRecord[], ssl: string | u
     // If any record for this name/type is DNS-only, report it as DNS-only.
     out[key] = key in out ? out[key]! && proxied : proxied;
   }
-  return { name, ssl, records: out };
+  const tunnels = [...new Set(records.filter(isTunnelRecord).map((r) => r.name.toLowerCase()))].sort();
+  return { name, ssl, records: out, tunnels };
 }
 
 export function diffSnapshots(prev: ZoneSnapshot, next: ZoneSnapshot, date: string, redact = true): Finding[] {
@@ -69,9 +81,27 @@ export function diffSnapshots(prev: ZoneSnapshot, next: ZoneSnapshot, date: stri
     link,
   });
 
+  // New tunnel hostnames. WAF rules can't target "traffic to a tunnel", so
+  // a rule meant for tunnels lists their hostnames by hand; every new
+  // one needs adding. For snapshots from before tunnel tracking existed,
+  // only records that are themselves new count (no alert storm on upgrade).
+  const prevTunnels = new Set(prev.tunnels ?? []);
+  const newTunnels = new Set(
+    (next.tunnels ?? []).filter((t) => !prevTunnels.has(t) && (prev.tunnels !== undefined || !(`${t}|CNAME` in prev.records))),
+  );
+  for (const t of newTunnels) {
+    f.push({
+      ...mk(`tunnel-new|${t}`, "warning", `New tunnel hostname ${show(t)}: check your WAF rules cover it`, [
+        "WAF rules can't target tunnels, so tunnel hostnames are listed in the rule by hand",
+      ]),
+      link: dashLink(zone, "security/waf/custom-rules"),
+    });
+  }
+
   for (const [key, proxied] of Object.entries(next.records)) {
     const [rawName, type] = key.split("|") as [string, string];
     const name = show(rawName);
+    if (type === "CNAME" && newTunnels.has(rawName)) continue; // reported above
     if (!(key in prev.records)) {
       const exposes = !proxied && PROXY_TYPES.has(type);
       f.push(
