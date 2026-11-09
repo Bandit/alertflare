@@ -40,6 +40,8 @@
     "EXTRA_IGNORE_PATHS": "",
     // /auth/* = login flows outside /api
     "INTERESTING_PATHS": "/api/*,/auth/*",
+    // login-activity: login endpoints; see README §5 for thresholds
+    "LOGIN_PATHS": "/auth/*",
     "ZONES_INCLUDE": "",
     "ZONES_EXCLUDE": "",
     "DISABLED_COLLECTORS": "",

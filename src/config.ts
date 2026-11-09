@@ -79,6 +79,9 @@ export const DEFAULT_IGNORE_PATHS = [
 /** Paths that make an otherwise-ordinary blocked request "interesting". */
 export const DEFAULT_INTERESTING_PATHS = ["/api/*"];
 
+/** Login endpoints (POST) watched by login-activity. */
+export const DEFAULT_LOGIN_PATHS = ["/auth/*"];
+
 export interface Config {
   dryRun: boolean;
   /** "postmark" or "cloudflare" (send_email binding). */
@@ -114,6 +117,12 @@ export interface Config {
   maxZonesPerRun: number;
   /** Countries considered "normal" for logins; empty = learn from history only. */
   loginHomeCountries: string[];
+  /** Login endpoints watched by the login-activity collector (POST only). */
+  loginPaths: string[];
+  /** Login POSTs per host that count as a burst (per hour hourly, per 24h daily). */
+  loginBurstThreshold: number;
+  /** Distinct client IPs per host per 24h that count as unusual. */
+  loginDistinctIps: number;
   /** audit entries whose description contains any of these are ignored */
   auditIgnore: string[];
   auditIncludeSystem: boolean;
@@ -183,6 +192,9 @@ export function loadConfig(env: Env): Config {
     disabledCollectors: list(env.DISABLED_COLLECTORS),
     maxZonesPerRun: num(env.MAX_ZONES_PER_RUN, 10),
     loginHomeCountries: list(env.LOGIN_HOME_COUNTRIES).map((c) => c.toUpperCase()),
+    loginPaths: env.LOGIN_PATHS === undefined ? DEFAULT_LOGIN_PATHS : list(env.LOGIN_PATHS),
+    loginBurstThreshold: num(env.LOGIN_BURST_THRESHOLD, 30),
+    loginDistinctIps: num(env.LOGIN_DISTINCT_IPS, 10),
     auditIgnore: [
       ...(list(env.AUDIT_IGNORE).length ? list(env.AUDIT_IGNORE) : DEFAULT_AUDIT_IGNORE),
       ...list(env.AUDIT_EXTRA_IGNORE),

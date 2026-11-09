@@ -1,0 +1,18 @@
+{
+  "data": {
+    "viewer": {
+      "zones": [
+        {
+          "zoneTag": "00000000000000000000000000000001",
+          "logins": [
+            { "count": 3, "dimensions": { "clientRequestHTTPHost": "app-k3x9qw7vbn2mzp4rt8y.example.com", "clientRequestPath": "/auth/token", "clientCountryName": "GB", "clientIP": "203.0.113.10" } },
+            { "count": 2, "dimensions": { "clientRequestHTTPHost": "app-k3x9qw7vbn2mzp4rt8y.example.com", "clientRequestPath": "/auth/login_flow", "clientCountryName": "GB", "clientIP": "203.0.113.10" } },
+            { "count": 9, "dimensions": { "clientRequestHTTPHost": "app-k3x9qw7vbn2mzp4rt8y.example.com", "clientRequestPath": "/auth/login_flow/0a1b2c3d4e5f60718293a4b5c6d7e8f9", "clientCountryName": "FR", "clientIP": "198.51.100.7" } },
+            { "count": 4, "dimensions": { "clientRequestHTTPHost": "app-k3x9qw7vbn2mzp4rt8y.example.com", "clientRequestPath": "/auth/login_flow", "clientCountryName": "FR", "clientIP": "198.51.100.8" } }
+          ]
+        }
+      ]
+    }
+  },
+  "errors": null
+}

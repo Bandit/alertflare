@@ -56,6 +56,7 @@ These are **not** available natively on Free or Pro, so alertflare covers them:
 |---|---|---|---|---|
 | `security-events` | daily | GraphQL `firewallEventsAdaptive*` | ✅ raw sampled events, up to 1,000 per zone | ✅ server-side aggregation (`firewallEventsAdaptiveGroups`) |
 | `audit-logs` | daily + hourly (urgent only); dashboard logins are not in account audit logs (see §9) | Audit Logs **v2** `GET /accounts/{id}/logs/audit` (GA since 2026‑03; all plans; 18-month retention) | ✅ | ✅ |
+| `login-activity` | daily + hourly (urgent bursts only) | GraphQL `httpRequestsAdaptiveGroups`: POSTs to `LOGIN_PATHS` that **reached the origin** | ✅ (no ASN on Free, so grouped by country; 31 days of history) | ✅ |
 | `access` | daily | `GET /accounts/{id}/access/logs/access_requests` | ✅ (Zero Trust Free keeps only **24 h** of logs) | ✅ |
 | `inventory` | daily | `GET /zones/{id}/dns_records`, `GET /zones/{id}/settings/ssl` | ✅ | ✅ |
 | ~~tunnel health~~ | | | Use the native Tunnel Health Alert | |
@@ -76,7 +77,7 @@ Go to Dashboard → My Profile → API Tokens → **Create Token** → *Create C
 
 | Scope | Permission | Access | Needed by | Why |
 |---|---|---|---|---|
-| Zone | **Analytics** | Read | security-events | **Required** for zone-scoped GraphQL queries. Verified on a live account: without it, GraphQL returns "zones … are not authorized". |
+| Zone | **Analytics** | Read | security-events, login-activity | **Required** for zone-scoped GraphQL queries. Verified on a live account: without it, GraphQL returns "zones … are not authorized". |
 | Account | **Account Analytics** | Read | security-events | The docs page "Configure an Analytics API token" names this one. It may not be needed when Zone Analytics Read is present; it is harmless and read-only. |
 | Account | **Account Settings** | Read | audit-logs | Required by both v1 and v2 audit log endpoints. |
 | Account | **Access: Audit Logs** | Read | access | Access authentication logs. Omit it if you don't use Access, and add `access` to `DISABLED_COLLECTORS`. |
@@ -318,6 +319,10 @@ npm run typecheck
 | `AUDIT_IGNORE` | *(built-in list)* | Replaces the list of audit descriptions to ignore. Matching is a case-insensitive substring match. |
 | `AUDIT_EXTRA_IGNORE` | | Adds to that list, for example `Upload Version,Create Worker Deployment` if Worker deploys are routine for you. |
 | `AUDIT_INCLUDE_SYSTEM` | `false` | Include entries by `system` and `delegated_service` actors. |
+| `LOGIN_PATHS` | `/auth/*` | Login endpoints watched by `login-activity` (POST only). The default suits apps whose login flow lives under `/auth/`. Set it to an empty string to disable the collector. |
+| `LOGIN_BURST_THRESHOLD` | `30` | Login POSTs per hostname that count as unusual: per 24 h in the daily digest (`warning`, or `urgent` at 3×), per hour in the hourly check (`urgent`). Normal use is a handful a day. |
+| `LOGIN_DISTINCT_IPS` | `10` | Distinct client IPs per hostname per 24 h that count as unusual. IPs are only counted, never stored or sent. |
+| `LOGIN_HOME_COUNTRIES` | | Comma-separated country codes (e.g. `GB`) never reported as "new country". Leave empty to rely on what alertflare has learned. |
 | `MAX_ZONES_PER_RUN` | `10` | Inventory zones checked per daily run. Zones rotate (see §8). |
 
 ## 6. Noise rules
@@ -530,6 +535,21 @@ API calls per daily run, with N zones:
   (November 2026), no login entries appeared in 30 days of the v1 API
   (`action.type=login`) or in the v2 API. Logins are user-level events, not
   account-level ones, so a token scoped to the account can't see them.
+
+- **Login activity sees attempts, not outcomes.** Many apps answer a
+  failed login with HTTP 200, so Cloudflare can't tell success from failure.
+  `login-activity` reports *who is trying* (a country new to that hostname,
+  or unusual volume or IP spread). Turn on the app's own
+  failed-login protection, such as IP bans.
+- **Only requests that reached an origin count.** Requests blocked at the
+  edge are reported by `security-events` instead. Hostnames served by a
+  Worker have no origin, so they are not covered by `login-activity`;
+  tunnels and proxied origins are.
+- **Baseline.** The first daily run learns the last 30 days of login
+  countries per hostname silently; the hourly check waits for that baseline.
+  A country unseen for 90 days is forgotten. A brand-new hostname has no
+  history, so its first login (probably you) is reported once, unless the
+  country is in `LOGIN_HOME_COUNTRIES`.
 
 ## 10. Privacy in notifications
 
