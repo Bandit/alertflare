@@ -302,7 +302,7 @@ npm run typecheck
 | `NOTIFIER` | `postmark` if `POSTMARK_SERVER_TOKEN` is set, otherwise `cloudflare` | Which sender to use. |
 | `TIMEZONE` | `UTC` | IANA timezone for dates in messages and for picking the heartbeat day, e.g. `Europe/London`. Set it as a secret (`wrangler secret put TIMEZONE`) if you'd rather not commit your location. |
 | `HEARTBEAT_DAY` | `mon` | Local weekday for the heartbeat. |
-| `INTERESTING_PATHS` | `/api/*` | Blocked requests to these paths are always reported, as `warning`. |
+| `INTERESTING_PATHS` | `/api/*` (this repo's `wrangler.jsonc` sets `/api/*,/auth/*`) | Blocked requests to these paths are reported, as `warning`, once they reach `MIN_HITS`. `/auth/*` covers login flows that live outside `/api/`. |
 | `INTERESTING_METHODS` | `POST,PUT,PATCH,DELETE` | Blocked requests with these methods are always reported, as `warning`. |
 | `MIN_HITS` | `3` | Minimum hits per day before a path- or method-based match is reported. One-off scanner probes are 1–3 hits; a broken integration retries all day (about 90 a day). Set it to `1` if you have webhooks that fire only once a day. |
 | `OWN_RULE_SOURCES` | `firewallCustom,firewallrules,ratelimit,ratelimitingrules,ip,iprange,asn,country,zonelockdown,uablock` | Security services whose rules *you* wrote. See §6. |

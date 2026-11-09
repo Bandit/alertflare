@@ -45,4 +45,9 @@ describe("classifier", () => {
     expect(c2.classify({ path: "/", method: "GET", count: 5 }).kind).toBe("interesting");
     expect(c2.classify({ path: "/api/legacy/x", method: "POST", count: 1 }).kind).toBe("noise");
   });
+  it("can watch extra paths such as an /auth login flow", () => {
+    const c3 = makeClassifier(testConfig({ INTERESTING_PATHS: "/api/*,/auth/*" }));
+    expect(c3.classify({ path: "/auth/authorize", method: "GET", count: 3, source: "firewallCustom" })).toMatchObject({ kind: "interesting", severity: "warning" });
+    expect(c.classify({ path: "/auth/authorize", method: "GET", count: 3, source: "firewallCustom" }).kind).toBe("boring");
+  });
 });
