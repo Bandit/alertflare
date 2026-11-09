@@ -94,7 +94,7 @@ export function diffSnapshots(prev: ZoneSnapshot, next: ZoneSnapshot, date: stri
       ...mk(`tunnel-new|${t}`, "warning", `New tunnel hostname ${show(t)}: check your WAF rules cover it`, [
         "WAF rules can't target tunnels, so tunnel hostnames are listed in the rule by hand",
       ]),
-      link: dashLink(zone, "security/waf/custom-rules"),
+      link: dashLink(zone, "security/security-rules"),
     });
   }
 

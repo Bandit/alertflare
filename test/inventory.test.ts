@@ -48,7 +48,7 @@ describe("tunnel hostname reminders", () => {
     expect(out[0]).toMatchObject({
       severity: "warning",
       summary: "New tunnel hostname photos.example.test: check your WAF rules cover it",
-      link: "https://dash.cloudflare.com/?to=/:account/example.test/security/waf/custom-rules",
+      link: "https://dash.cloudflare.com/?to=/:account/example.test/security/security-rules",
     });
   });
 

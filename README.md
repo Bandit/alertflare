@@ -25,8 +25,10 @@ Facts were checked against developers.cloudflare.com in November 2026.
 
 ### Enable these native Notifications instead
 
-Every notification here is available on Free and Pro, and can be delivered by
-email or webhook. Step-by-step setup is in **§2.5**.
+"Free" and "Pro" here mean the **zone** plan (per domain), not Workers Paid.
+Unless marked otherwise, every notification here is available on Free and Pro
+zones, and can be delivered by email or webhook. Step-by-step setup is in
+**§2.5**.
 
 | Notification | Why |
 |---|---|
@@ -34,7 +36,7 @@ email or webhook. Step-by-step setup is in **§2.5**.
 | **Tunnel Creation or Deletion Event** | Instant alert when a tunnel is created or deleted. |
 | **HTTP DDoS Attack Alert** | Fires on attacks mitigated above 100 rps, on all plans. |
 | **Universal SSL Alert** | Covers certificate validation, issuance, renewal and expiry. |
-| **Health Checks status** *(Pro+)* | If you configure a Health Check on your origin, this is the best way to learn the origin itself is down. |
+| **Health Checks status** *(Pro zone plan or higher)* | If you configure a Health Check on your origin, this is the best way to learn the origin itself is down. |
 | **Expiring Access Service Token** *(if you use service tokens)* | |
 | **Incident Alerts** *(optional)* | Cloudflare status incidents. Useful context when your alerts fire. |
 
@@ -197,7 +199,11 @@ like and lets you mark it "not spam" if needed.
 - Covers certificate validation, issuance, renewal and expiry problems. A
   failed renewal would otherwise break HTTPS with no warning.
 
-**5. Health Check on your origin (Pro and above)**
+**5. Health Check on your origin (Pro zone plan or higher)**
+
+> Health Checks need the zone on **Pro or higher**. A Workers Paid
+> subscription doesn't count. On a Free zone, skip this step; the Tunnel
+> Health Alert is the closest native substitute.
 
 The Tunnel Health Alert only tells you whether the *tunnel* is up. It won't
 notice your app crashing behind a healthy tunnel and returning 502s.
