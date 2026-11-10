@@ -4,6 +4,8 @@ import { securityEvents } from "./securityEvents";
 import { access } from "./access";
 import { inventory } from "./inventory";
 import { loginActivity } from "./loginActivity";
+import { domains } from "./domains";
+import { tokens } from "./tokens";
 
 /**
  * Registered collectors, in run order. Order matters for the shared
@@ -16,4 +18,4 @@ import { loginActivity } from "./loginActivity";
  * "Tunnel Health Alert" notification (all Zero Trust plans) already does
  * state-change alerting. See README.
  */
-export const COLLECTORS: Collector[] = [auditLogs, securityEvents, loginActivity, access, inventory];
+export const COLLECTORS: Collector[] = [auditLogs, tokens, securityEvents, loginActivity, access, domains, inventory];

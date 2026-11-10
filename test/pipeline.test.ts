@@ -4,6 +4,7 @@ import groupsFixture from "./fixtures/graphql-groups.json";
 import auditFixture from "./fixtures/audit-v2.json";
 import dnsFixture from "./fixtures/dns-records.json";
 import settingsFixture from "./fixtures/zone-settings.json";
+import tokensFixture from "./fixtures/user-tokens.json";
 import { run } from "../src/pipeline";
 import { COLLECTORS } from "../src/collectors";
 import type { Message, Notifier } from "../src/notify/notifier";
@@ -32,6 +33,10 @@ function fakeApi(overrides: Partial<Record<string, Handler>> = {}) {
     if (url.includes("/access/logs")) return route("access", () => jsonResponse({ success: false, errors: [{ code: 12006, message: "Access is not enabled" }], result: null }, 403));
     if (url.includes("/dns_records")) return route("dns", () => jsonResponse(dnsFixture));
     if (url.includes("/settings")) return route("settings", () => jsonResponse(settingsFixture));
+    if (url.includes("/user/tokens/verify")) return route("verify", () => jsonResponse({ success: true, errors: [], result: { id: tokensFixture.result[0]!.id, status: "active" } }));
+    if (url.includes("/user/tokens")) return route("tokens", () => jsonResponse(tokensFixture));
+    if (url.includes("/registrar/")) return route("registrar", () => jsonResponse({ success: false, errors: [{ code: 10000, message: "Authentication error" }], result: null }, 403));
+    if (url.includes("/dnssec")) return route("dnssec", () => jsonResponse({ success: true, errors: [], result: { status: "disabled" } }));
     if (url.includes("/zones?")) return route("zones", () => jsonResponse(zonesFixture));
     return jsonResponse({ success: false, errors: [{ code: 7003, message: "no route" }] }, 404);
   };

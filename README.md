@@ -57,6 +57,8 @@ These are **not** available natively on Free or Pro, so alertflare covers them:
 | `security-events` | daily | GraphQL `firewallEventsAdaptive*` | ✅ raw sampled events, up to 1,000 per zone | ✅ server-side aggregation (`firewallEventsAdaptiveGroups`) |
 | `audit-logs` | daily + hourly (urgent only); dashboard logins are not in account audit logs (see §9) | Audit Logs **v2** `GET /accounts/{id}/logs/audit` (GA since 2026‑03; all plans; 18-month retention) | ✅ | ✅ |
 | `login-activity` | daily + hourly (urgent bursts only) | GraphQL `httpRequestsAdaptiveGroups`: POSTs to `LOGIN_PATHS` that **reached the origin** | ✅ (no ASN on Free, so grouped by country; 31 days of history) | ✅ |
+| `tokens` | daily + hourly (urgent only) | `GET /user/tokens` (metadata only) | ✅ | ✅ |
+| `domains` | daily | `GET /zones` (all statuses), `GET /zones/{id}/dnssec`, `GET /accounts/{id}/registrar/registrations`, plus a public registry lookup per domain (RDAP, or WHOIS on TCP 43 for `.nz`) | ✅ | ✅ |
 | `access` | daily | `GET /accounts/{id}/access/logs/access_requests` | ✅ (Zero Trust Free keeps only **24 h** of logs) | ✅ |
 | `inventory` | daily | `GET /zones/{id}/dns_records`, `GET /zones/{id}/settings` (one call for all settings) | ✅ | ✅ |
 | ~~tunnel health~~ | | | Use the native Tunnel Health Alert | |
@@ -84,11 +86,15 @@ Go to Dashboard → My Profile → API Tokens → **Create Token** → *Create C
 | Zone | **Zone** | Read | all | Lists the zones in the account. |
 | Zone | **DNS** | Read | inventory | Reads DNS records to detect new hostnames and proxied flips. |
 | Zone | **Zone Settings** | Read | inventory | Reads the SSL/TLS mode, minimum TLS version, HSTS and Always Use HTTPS. |
+| Account | **Registrar: Domains** | Read | domains | *Optional.* Expiry, auto-renew, transfer lock and status for domains registered at Cloudflare. Without it, that part is skipped. Don't tick *Admin*. |
+| User | **API Tokens** | Read | tokens | *Optional.* Token metadata (names, permissions, status, expiry; never token values), so new or changed tokens are reported. Without it, the collector is skipped. Don't tick *Edit*. |
 
 - **Account Resources:** *Include → your account* only.
 - **Zone Resources:** *Include → All zones from an account → your account*.
-- **Not needed:** any Edit/Write permission, or Cloudflare Tunnel Read (there
-  is no tunnel collector).
+- **User Resources** (only if you add API Tokens Read): your user.
+- **Not needed:** any Edit/Write permission, Cloudflare Tunnel Read (there
+  is no tunnel collector), or User Details Read (the user audit log it
+  unlocks had no logins or token changes on a live account; see §9).
 
 Store the token as a secret. Never put it in `wrangler.jsonc` or `.dev.vars.example`.
 
@@ -323,6 +329,8 @@ npm run typecheck
 | `LOGIN_BURST_THRESHOLD` | `30` | Login POSTs per hostname that count as unusual: per 24 h in the daily digest (`warning`, or `urgent` at 3×), per hour in the hourly check (`urgent`). Normal use is a handful a day. |
 | `LOGIN_DISTINCT_IPS` | `10` | Distinct client IPs per hostname per 24 h that count as unusual. IPs are only counted, never stored or sent. |
 | `LOGIN_HOME_COUNTRIES` | | Comma-separated country codes (e.g. `GB`) never reported as "new country". Leave empty to rely on what alertflare has learned. |
+| `REGISTRY_LOOKUPS` | `true` | Look up each domain at its registry (RDAP or WHOIS) for the delegation (hijack) check. Sends only domain names, which are public, to the registries. |
+| `DOMAIN_EXPIRY_WARN_DAYS` | `30` | Warn this many days before a domain expires when auto-renew isn't on (urgent within 7 days regardless). |
 | `MAX_ZONES_PER_RUN` | `10` | Inventory zones checked per daily run. Zones rotate (see §8). |
 
 ## 6. Noise rules
@@ -555,6 +563,22 @@ API calls per daily run, with N zones:
   history, so its first login (probably you) is reported once, unless the
   country is in `LOGIN_HOME_COUNTRIES`.
 
+- **Token changes are invisible to audit logs.** User-owned API tokens belong
+  to your login, not the account. On a live account (November 2026), creating
+  or editing one appeared in neither the account audit log nor the user audit
+  log (`/user/audit_logs`), which also had no dashboard logins. The `tokens`
+  collector closes this gap by comparing daily (and hourly) snapshots of the
+  token list instead.
+- **Domains.** The registry lookup checks that the registry still delegates
+  each domain to the nameservers Cloudflare assigned. A mismatch is reported
+  as a possible hijack, even if nothing changed inside Cloudflare.
+  `.nz` has no RDAP service, so `.nz` domains use WHOIS, which has no expiry
+  date and no transfer lock; expiry for `.nz` comes only from the Registrar
+  API, i.e. for domains registered at Cloudflare. Cloudflare's `.nz`
+  registrations show **Key-Systems GmbH** as the registrar at the registry, so
+  transferring a `.nz` domain to Cloudflare produces one expected
+  "registrar changed" warning.
+
 ## 10. Privacy in notifications
 
 - Webhook IDs and other token-like path segments are cut to their first 8
@@ -568,6 +592,9 @@ API calls per daily run, with N zones:
 - Dashboard links use `dash.cloudflare.com/?to=/:account/<zone-name>/…`, so they
   contain no account or zone IDs.
 - Error messages replace IDs in API paths with `…`, and no stack traces are sent.
+- API tokens are described by name and permission names only. Token IDs,
+  resource IDs and IP ranges in token conditions are stored only as hashes,
+  and are never sent.
 
 ## 11. Adding a collector
 

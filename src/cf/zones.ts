@@ -39,7 +39,7 @@ export async function listZones(cf: CloudflareClient, accountId: string, config:
   );
 }
 
-export function filterZones(zones: ZoneRef[], config: Pick<Config, "zoneInclude" | "zoneExclude">): ZoneRef[] {
+export function filterZones<T extends Pick<ZoneRef, "name">>(zones: T[], config: Pick<Config, "zoneInclude" | "zoneExclude">): T[] {
   return zones
     .filter((z) => !config.zoneInclude.length || config.zoneInclude.includes(z.name.toLowerCase()))
     .filter((z) => !config.zoneExclude.includes(z.name.toLowerCase()))

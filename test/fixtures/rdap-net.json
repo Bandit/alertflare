@@ -1,0 +1,18 @@
+{
+  "objectClassName": "domain",
+  "ldhName": "EXAMPLE.NET",
+  "status": ["client transfer prohibited"],
+  "events": [
+    { "eventAction": "registration", "eventDate": "2005-10-14T16:50:13Z" },
+    { "eventAction": "expiration", "eventDate": "2027-10-14T16:50:13Z" },
+    { "eventAction": "last changed", "eventDate": "2026-07-18T05:16:08Z" }
+  ],
+  "entities": [
+    { "objectClassName": "entity", "roles": ["registrar"], "vcardArray": ["vcard", [["version", {}, "text", "4.0"], ["fn", {}, "text", "Cloudflare, Inc."]]] }
+  ],
+  "nameservers": [
+    { "objectClassName": "nameserver", "ldhName": "GERALD.NS.CLOUDFLARE.COM" },
+    { "objectClassName": "nameserver", "ldhName": "ULLA.NS.CLOUDFLARE.COM" }
+  ],
+  "secureDNS": { "delegationSigned": false }
+}

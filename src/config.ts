@@ -123,6 +123,10 @@ export interface Config {
   loginBurstThreshold: number;
   /** Distinct client IPs per host per 24h that count as unusual. */
   loginDistinctIps: number;
+  /** Look up each domain at its registry (RDAP / WHOIS) for the hijack check. */
+  registryLookups: boolean;
+  /** Warn this many days before a domain expires (if auto-renew isn't on). */
+  domainExpiryWarnDays: number;
   /** audit entries whose description contains any of these are ignored */
   auditIgnore: string[];
   auditIncludeSystem: boolean;
@@ -195,6 +199,8 @@ export function loadConfig(env: Env): Config {
     loginPaths: env.LOGIN_PATHS === undefined ? DEFAULT_LOGIN_PATHS : list(env.LOGIN_PATHS),
     loginBurstThreshold: num(env.LOGIN_BURST_THRESHOLD, 30),
     loginDistinctIps: num(env.LOGIN_DISTINCT_IPS, 10),
+    registryLookups: env.REGISTRY_LOOKUPS === undefined ? true : bool(env.REGISTRY_LOOKUPS),
+    domainExpiryWarnDays: num(env.DOMAIN_EXPIRY_WARN_DAYS, 30),
     auditIgnore: [
       ...(list(env.AUDIT_IGNORE).length ? list(env.AUDIT_IGNORE) : DEFAULT_AUDIT_IGNORE),
       ...list(env.AUDIT_EXTRA_IGNORE),

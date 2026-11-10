@@ -24,6 +24,8 @@ export function testEnv(overrides: Record<string, string> = {}): Env {
     CF_API_TOKEN: "test-token",
     CF_ACCOUNT_ID: "acc",
     DRY_RUN: "true",
+    // Never reach real RDAP/WHOIS servers from tests.
+    REGISTRY_LOOKUPS: "false",
     ...overrides,
   } as Env;
 }
