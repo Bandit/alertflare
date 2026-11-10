@@ -1,0 +1,13 @@
+{
+  "success": true,
+  "errors": [],
+  "messages": [],
+  "result": [
+    { "id": "always_use_https", "value": "on", "editable": true, "modified_on": "2026-11-10T01:00:00.000000Z" },
+    { "id": "automatic_https_rewrites", "value": "on", "editable": true, "modified_on": null },
+    { "id": "min_tls_version", "value": "1.2", "editable": true, "modified_on": "2026-11-10T01:00:00.000000Z" },
+    { "id": "security_header", "value": { "strict_transport_security": { "enabled": true, "max_age": 2592000, "include_subdomains": false, "preload": false, "nosniff": true } }, "editable": true, "modified_on": "2026-11-10T01:05:00.000000Z" },
+    { "id": "ssl", "value": "strict", "editable": true, "modified_on": null },
+    { "id": "tls_1_3", "value": "on", "editable": true, "modified_on": null }
+  ]
+}

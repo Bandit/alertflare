@@ -3,6 +3,7 @@ import zonesFixture from "./fixtures/zones.json";
 import groupsFixture from "./fixtures/graphql-groups.json";
 import auditFixture from "./fixtures/audit-v2.json";
 import dnsFixture from "./fixtures/dns-records.json";
+import settingsFixture from "./fixtures/zone-settings.json";
 import { run } from "../src/pipeline";
 import { COLLECTORS } from "../src/collectors";
 import type { Message, Notifier } from "../src/notify/notifier";
@@ -30,7 +31,7 @@ function fakeApi(overrides: Partial<Record<string, Handler>> = {}) {
     if (url.includes("/logs/audit")) return route("audit", () => jsonResponse(auditFixture));
     if (url.includes("/access/logs")) return route("access", () => jsonResponse({ success: false, errors: [{ code: 12006, message: "Access is not enabled" }], result: null }, 403));
     if (url.includes("/dns_records")) return route("dns", () => jsonResponse(dnsFixture));
-    if (url.includes("/settings/ssl")) return route("ssl", () => jsonResponse({ success: true, errors: [], result: { id: "ssl", value: "strict" } }));
+    if (url.includes("/settings")) return route("settings", () => jsonResponse(settingsFixture));
     if (url.includes("/zones?")) return route("zones", () => jsonResponse(zonesFixture));
     return jsonResponse({ success: false, errors: [{ code: 7003, message: "no route" }] }, 404);
   };

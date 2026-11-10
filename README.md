@@ -58,7 +58,7 @@ These are **not** available natively on Free or Pro, so alertflare covers them:
 | `audit-logs` | daily + hourly (urgent only); dashboard logins are not in account audit logs (see §9) | Audit Logs **v2** `GET /accounts/{id}/logs/audit` (GA since 2026‑03; all plans; 18-month retention) | ✅ | ✅ |
 | `login-activity` | daily + hourly (urgent bursts only) | GraphQL `httpRequestsAdaptiveGroups`: POSTs to `LOGIN_PATHS` that **reached the origin** | ✅ (no ASN on Free, so grouped by country; 31 days of history) | ✅ |
 | `access` | daily | `GET /accounts/{id}/access/logs/access_requests` | ✅ (Zero Trust Free keeps only **24 h** of logs) | ✅ |
-| `inventory` | daily | `GET /zones/{id}/dns_records`, `GET /zones/{id}/settings/ssl` | ✅ | ✅ |
+| `inventory` | daily | `GET /zones/{id}/dns_records`, `GET /zones/{id}/settings` (one call for all settings) | ✅ | ✅ |
 | ~~tunnel health~~ | | | Use the native Tunnel Health Alert | |
 
 Account-level security analytics needs Enterprise, so `security-events`
@@ -83,7 +83,7 @@ Go to Dashboard → My Profile → API Tokens → **Create Token** → *Create C
 | Account | **Access: Audit Logs** | Read | access | Access authentication logs. Omit it if you don't use Access, and add `access` to `DISABLED_COLLECTORS`. |
 | Zone | **Zone** | Read | all | Lists the zones in the account. |
 | Zone | **DNS** | Read | inventory | Reads DNS records to detect new hostnames and proxied flips. |
-| Zone | **Zone Settings** | Read | inventory | Reads the SSL/TLS mode. |
+| Zone | **Zone Settings** | Read | inventory | Reads the SSL/TLS mode, minimum TLS version, HSTS and Always Use HTTPS. |
 
 - **Account Resources:** *Include → your account* only.
 - **Zone Resources:** *Include → All zones from an account → your account*.
@@ -416,6 +416,10 @@ A group with 10 or more denials becomes `warning`.
 
 - Reported: new or removed DNS records, proxied ↔ DNS-only flips, SSL/TLS mode
   changes, and zones added or removed.
+- Edge certificate settings: minimum TLS version lowered, HSTS turned off, or
+  Always Use HTTPS turned off are `warning`; the reverse (and HSTS max-age
+  changes) are `info`. Like the SSL mode, only *changes* are reported, so a
+  zone that was already weak when alertflare first saw it stays quiet.
 - **New tunnel hostnames** (CNAMEs to `*.cfargotunnel.com`, either new or
   re-pointed) are a `warning`: "New tunnel hostname …: check your WAF rules cover it".
   WAF rules can't match "traffic going to a tunnel", so a rule meant

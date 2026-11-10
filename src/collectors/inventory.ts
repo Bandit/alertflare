@@ -1,10 +1,11 @@
 /**
  * Zone inventory drift: new/removed DNS hostnames, proxied <-> DNS-only
- * flips, SSL/TLS mode changes, zones added/removed. Diffs against the
- * previous snapshot stored in KV.
+ * flips, changes to SSL/TLS mode, minimum TLS version, HSTS and Always Use
+ * HTTPS, zones added/removed. Diffs against the previous snapshot in KV.
  *
  *   GET /zones/{zone_id}/dns_records      Permission: DNS Read
- *   GET /zones/{zone_id}/settings/ssl     Permission: Zone Settings Read
+ *   GET /zones/{zone_id}/settings         Permission: Zone Settings Read
+ *                                         (all settings in one call)
  *
  * Costs 2 subrequests per zone, so zones are processed in rotation: each
  * run handles up to MAX_ZONES_PER_RUN zones (and never dips into the last
@@ -28,6 +29,10 @@ interface DnsRecord {
 export interface ZoneSnapshot {
   name: string;
   ssl?: string;
+  /** "1.0" | "1.1" | "1.2" | "1.3". Undefined in older snapshots. */
+  minTls?: string;
+  hsts?: { enabled: boolean; maxAge: number };
+  alwaysHttps?: boolean;
   /** "name|type" -> proxied (true/false); multiple records collapse to "any proxied=false" */
   records: Record<string, boolean>;
   /**
@@ -53,7 +58,38 @@ export function isTunnelRecord(r: Pick<DnsRecord, "type" | "content">): boolean 
   return r.type === "CNAME" && /\.cfargotunnel\.com\.?$/i.test(r.content ?? "");
 }
 
-export function snapshotFrom(name: string, records: DnsRecord[], ssl: string | undefined): ZoneSnapshot {
+export interface ZoneSettings {
+  ssl?: string;
+  minTls?: string;
+  hsts?: { enabled: boolean; maxAge: number };
+  alwaysHttps?: boolean;
+}
+
+interface SettingEntry {
+  id: string;
+  value: unknown;
+}
+
+/** Pick the settings alertflare tracks out of GET /zones/{id}/settings. */
+export function pickSettings(entries: SettingEntry[]): ZoneSettings {
+  const m = new Map(entries.map((e) => [e.id, e.value] as const));
+  const out: ZoneSettings = {};
+  if (typeof m.get("ssl") === "string") out.ssl = m.get("ssl") as string;
+  if (typeof m.get("min_tls_version") === "string") out.minTls = m.get("min_tls_version") as string;
+  const sts = (m.get("security_header") as { strict_transport_security?: { enabled?: boolean; max_age?: number } } | undefined)
+    ?.strict_transport_security;
+  if (sts) out.hsts = { enabled: !!sts.enabled, maxAge: sts.max_age ?? 0 };
+  if (typeof m.get("always_use_https") === "string") out.alwaysHttps = m.get("always_use_https") === "on";
+  return out;
+}
+
+function days(seconds: number): string {
+  const d = Math.round(seconds / 86_400);
+  return d >= 1 ? `${d} days` : `${seconds}s`;
+}
+
+export function snapshotFrom(name: string, records: DnsRecord[], settings: ZoneSettings | string | undefined): ZoneSnapshot {
+  const set: ZoneSettings = typeof settings === "string" ? { ssl: settings } : settings ?? {};
   const out: Record<string, boolean> = {};
   for (const r of records) {
     const key = `${r.name.toLowerCase()}|${r.type}`;
@@ -62,7 +98,7 @@ export function snapshotFrom(name: string, records: DnsRecord[], ssl: string | u
     out[key] = key in out ? out[key]! && proxied : proxied;
   }
   const tunnels = [...new Set(records.filter(isTunnelRecord).map((r) => r.name.toLowerCase()))].sort();
-  return { name, ssl, records: out, tunnels };
+  return { name, ...set, records: out, tunnels };
 }
 
 export function diffSnapshots(prev: ZoneSnapshot, next: ZoneSnapshot, date: string, redact = true): Finding[] {
@@ -129,6 +165,33 @@ export function diffSnapshots(prev: ZoneSnapshot, next: ZoneSnapshot, date: stri
       link: dashLink(zone, "ssl-tls"),
     });
   }
+
+  // Edge certificate settings. Only compared when both snapshots have the
+  // field, so upgrading from older snapshots doesn't alert.
+  const certLink = dashLink(zone, "ssl-tls/edge-certificates");
+  const edge = (fp: string, severity: Finding["severity"], summary: string, details?: string[]): Finding => ({
+    ...mk(fp, severity, summary, details),
+    link: certLink,
+  });
+  if (prev.minTls && next.minTls && prev.minTls !== next.minTls) {
+    const lowered = Number(next.minTls) < Number(prev.minTls);
+    f.push(edge(`min-tls|${prev.minTls}->${next.minTls}`, lowered ? "warning" : "info", `Minimum TLS version ${lowered ? "lowered" : "raised"}: ${prev.minTls} → ${next.minTls}`,
+      lowered && Number(next.minTls) < 1.2 ? ["TLS 1.0/1.1 are deprecated"] : undefined));
+  }
+  if (prev.hsts && next.hsts) {
+    if (prev.hsts.enabled && !next.hsts.enabled) {
+      f.push(edge("hsts-off", "warning", "HSTS was turned off"));
+    } else if (!prev.hsts.enabled && next.hsts.enabled) {
+      f.push(edge("hsts-on", "info", `HSTS turned on (max-age ${days(next.hsts.maxAge)})`));
+    } else if (next.hsts.enabled && prev.hsts.maxAge !== next.hsts.maxAge) {
+      f.push(edge(`hsts-age|${prev.hsts.maxAge}->${next.hsts.maxAge}`, "info", `HSTS max-age changed: ${days(prev.hsts.maxAge)} → ${days(next.hsts.maxAge)}`));
+    }
+  }
+  if (prev.alwaysHttps !== undefined && next.alwaysHttps !== undefined && prev.alwaysHttps !== next.alwaysHttps) {
+    f.push(next.alwaysHttps
+      ? edge("always-https-on", "info", "Always Use HTTPS turned on")
+      : edge("always-https-off", "warning", "Always Use HTTPS turned off", ["Plain-HTTP requests are no longer redirected to HTTPS"]));
+  }
   return f;
 }
 
@@ -183,8 +246,11 @@ export const inventory: Collector = {
         break;
       }
       const records = await cf.getAllPages<DnsRecord>(`/zones/${z.id}/dns_records`, 1000, 2);
-      const ssl = await cf.get<{ value: string }>(`/zones/${z.id}/settings/ssl`).then((r) => r.value).catch(() => undefined);
-      const snap = snapshotFrom(z.name, records, ssl);
+      const settings = await cf
+        .get<SettingEntry[]>(`/zones/${z.id}/settings`)
+        .then(pickSettings)
+        .catch(() => undefined);
+      const snap = snapshotFrom(z.name, records, settings);
       const old = prev.zones[z.id];
       if (old) findings.push(...diffSnapshots(old, snap, date, ctx.config.redactHostnames));
       state.zones[z.id] = snap;
