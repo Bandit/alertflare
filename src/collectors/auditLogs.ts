@@ -42,9 +42,12 @@ export interface AuditState {
 
 /**
  * Data-plane activity that the audit log records as "create"/"update" but
- * which is not a configuration change. Case-insensitive substring match on
- * action.description. Override with AUDIT_IGNORE / extend with
- * AUDIT_EXTRA_IGNORE.
+ * which is not a configuration change. Override with AUDIT_IGNORE / extend
+ * with AUDIT_EXTRA_IGNORE.
+ *
+ * Plain entries: case-insensitive substring match on action.description.
+ * Entries containing "/": prefix match on "<resource.product>/<resource.type>",
+ * for actions whose descriptions are too generic to match safely.
  */
 export const DEFAULT_AUDIT_IGNORE = [
   "Query D1 Database",
@@ -52,6 +55,13 @@ export const DEFAULT_AUDIT_IGNORE = [
   "Upload Object",
   "Upload Worker Assets",
   "Create Worker Assets Upload Session",
+  // Payment intents are created for every purchase (e.g. a domain transfer).
+  // Payment *method* changes are still reported.
+  "Create Payment Intent",
+  // Browsing Workers Logs in the dashboard: "Run a query", "List keys", … (POSTs).
+  "workers/observability.",
+  // Vector data operations (insert/upsert/delete by id); index create/delete are kept.
+  "vectorize/indexes.",
 ];
 
 /**
@@ -176,7 +186,11 @@ export interface ProcessOptions {
 export function isIgnored(e: AuditEntry, ignore: string[], includeSystem: boolean): boolean {
   if (!includeSystem && SYSTEM_ACTORS.has((e.actor?.type ?? "").toLowerCase())) return true;
   const d = (e.action?.description ?? "").toLowerCase();
-  return ignore.some((i) => d.includes(i.toLowerCase()));
+  const r = `${e.resource?.product ?? ""}/${e.resource?.type ?? ""}`.toLowerCase();
+  return ignore.some((i) => {
+    const needle = i.toLowerCase();
+    return needle.includes("/") ? r.startsWith(needle) : d.includes(needle);
+  });
 }
 
 export function processEntries(

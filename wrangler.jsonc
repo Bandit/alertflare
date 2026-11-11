@@ -45,9 +45,10 @@
     "ZONES_INCLUDE": "",
     "ZONES_EXCLUDE": "",
     "DISABLED_COLLECTORS": "",
-    // Routine Worker deploys (wrangler deploy produces all four per deploy).
-    // Cron trigger and secret changes are still reported.
-    "AUDIT_EXTRA_IGNORE": "Upload Version,Create Worker Deployment,Patch Worker Script Settings,Update Worker Script Subdomain"
+    // Routine Worker deploys: wrangler deploy produces all of these on every
+    // deploy (schedules and queue consumers are re-applied even if unchanged).
+    // Secret changes are still reported.
+    "AUDIT_EXTRA_IGNORE": "Upload Version,Create Worker Deployment,Patch Worker Script Settings,Update Worker Script Subdomain,Update Worker Script Schedules,Update Queue Consumer"
   },
   "observability": { "enabled": true }
   // Secrets (never in this file):

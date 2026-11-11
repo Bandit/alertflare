@@ -5,10 +5,11 @@
  *   GET /user/tokens          Permission: User > API Tokens > Read
  *   GET /user/tokens/verify   (no permission needed) identifies alertflare's own token
  *
- * User-owned tokens belong to your login, not the account, so creating,
- * editing or deleting them is NOT in the account audit log, and (checked
- * on a live account, Nov 2026) not in the user audit log either. This
- * collector snapshots the token list and reports differences:
+ * Token create/update/delete *is* in the account audit log ("Create Token",
+ * "Update Token", resource scope "user"), but can appear tens of minutes
+ * late, and the entry doesn't say what changed. This collector is the
+ * independent second check: it snapshots the token list and reports a
+ * readable before/after:
  *
  *   new token                                urgent
  *   permissions / scope changed              urgent if it gained write access, else warning

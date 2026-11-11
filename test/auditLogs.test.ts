@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import fixture from "./fixtures/audit-v2.json";
-import { categorise, processEntries, shortId, type AuditEntry } from "../src/collectors/auditLogs";
+import { categorise, isIgnored, processEntries, shortId, type AuditEntry } from "../src/collectors/auditLogs";
+import { testConfig } from "./helpers";
 
 const entries = fixture.result as AuditEntry[];
 const opts = { urgentOnly: false, timezone: "UTC" };
@@ -105,4 +106,21 @@ describe("noise reduction (shapes seen on a live account)", () => {
     expect(shortId("http_request_firewall_custom")).toBe("http_request_firewall_custom");
     expect(shortId("b6e6130c4d2e4f1a9c3b2a1d0e9f8a7b")).toBe("b6e6130c…");
   });
+});
+
+describe("isIgnored: built-in noise", () => {
+  const ignore = testConfig().auditIgnore;
+  const entry = (description: string, product: string, type: string) =>
+    ({ action: { description, type: "create" }, actor: { type: "user", email: "a@example.test" }, resource: { product, type } }) as never;
+  it.each([
+    ["Run a query", "workers", "observability.telemetry.query"],
+    ["List keys", "workers", "observability.telemetry.keys"],
+    ["Delete Vectors By Identifier", "vectorize", "indexes.delete_by_ids"],
+    ["Create Payment Intent for Billing Profile", "billing", "profile.payment-method"],
+  ])("ignores %s", (d, p, t) => expect(isIgnored(entry(d, p, t), ignore, false)).toBe(true));
+  it.each([
+    ["Set Default Payment Method", "payment-methods", "set-as-default"],
+    ["Create Vectorize Index", "vectorize", "indexes"],
+    ["Create Worker Secret", "workers", "scripts.secrets"],
+  ])("keeps %s", (d, p, t) => expect(isIgnored(entry(d, p, t), ignore, false)).toBe(false));
 });

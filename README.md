@@ -322,7 +322,7 @@ npm run typecheck
 | `EXTRA_IGNORE_PATHS` | | Adds entries to the built-in list. |
 | `ZONES_INCLUDE` / `ZONES_EXCLUDE` | | Comma-separated zone names. |
 | `DISABLED_COLLECTORS` | | For example `access`. |
-| `AUDIT_IGNORE` | *(built-in list)* | Replaces the list of audit descriptions to ignore. Matching is a case-insensitive substring match. |
+| `AUDIT_IGNORE` | *(built-in list)* | Replaces the list of audit entries to ignore. A plain entry is a case-insensitive substring match on the description; an entry containing `/` is a prefix match on `product/type` of the resource, e.g. `workers/observability.` for dashboard log queries. |
 | `AUDIT_EXTRA_IGNORE` | | Adds to that list, for example `Upload Version,Create Worker Deployment` if Worker deploys are routine for you. |
 | `AUDIT_INCLUDE_SYSTEM` | `false` | Include entries by `system` and `delegated_service` actors. |
 | `LOGIN_PATHS` | `/auth/*` | Login endpoints watched by `login-activity` (POST only). The default suits apps whose login flow lives under `/auth/`. Set it to an empty string to disable the collector. |
@@ -563,12 +563,15 @@ API calls per daily run, with N zones:
   history, so its first login (probably you) is reported once, unless the
   country is in `LOGIN_HOME_COUNTRIES`.
 
-- **Token changes are invisible to audit logs.** User-owned API tokens belong
-  to your login, not the account. On a live account (November 2026), creating
-  or editing one appeared in neither the account audit log nor the user audit
-  log (`/user/audit_logs`), which also had no dashboard logins. The `tokens`
-  collector closes this gap by comparing daily (and hourly) snapshots of the
-  token list instead.
+- **Token changes and the audit logs.** Creating or editing a user API token
+  *does* appear in the account audit log ("Create Token" / "Update Token",
+  resource scope `user`), which `audit-logs` reports as urgent. On a live
+  account (November 2026) these entries appeared tens of minutes late. The
+  `tokens` collector is an independent second check that also shows *what*
+  changed (permissions gained or lost) and warns before tokens expire, so a
+  single token change can produce one line from each. The user audit log
+  (`/user/audit_logs`, needs User Details Read) had neither token changes nor
+  dashboard logins, so alertflare doesn't use it.
 - **Domains.** The registry lookup checks that the registry still delegates
   each domain to the nameservers Cloudflare assigned. A mismatch is reported
   as a possible hijack, even if nothing changed inside Cloudflare.
