@@ -19,6 +19,11 @@ still alive.
 - Weekly heartbeat on Monday: totals per collector and per zone, plus any
   collector failures.
 
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Bandit/alertflare)
+
+Using the button? Create the API token first (§2.1), then see
+[Deploy with the button](#deploy-with-the-button).
+
 ## 1. What runs here vs. what Cloudflare already does
 
 Facts were checked against developers.cloudflare.com in November 2026.
@@ -68,6 +73,30 @@ enumerates zones and queries them in batches of up to 10 zones per GraphQL
 query. That batch size is the documented per-query limit.
 
 ## 2. Setup
+
+### Deploy with the button
+
+The **Deploy to Cloudflare** button above copies this repository into your
+GitHub account and creates the Worker, its cron triggers and a new KV
+namespace for its state in your Cloudflare account. It then asks for the
+values below; each prompt has a short description.
+
+1. **Before you click**, create the read-only API token (§2.1) and decide how
+   to send email (§2.3).
+2. **Secrets** it asks for: `CF_API_TOKEN`, `CF_ACCOUNT_ID` (optional),
+   `POSTMARK_SERVER_TOKEN`, `EMAIL_FROM` and `EMAIL_TO`. If you use
+   Cloudflare Email instead of Postmark, set `NOTIFIER` to `cloudflare` and
+   enter `unused` for the Postmark token.
+3. **Variables** worth changing: set `DRY_RUN` to `true` for a trial run
+   that only logs digests, `TIMEZONE` to your IANA timezone, and the daily
+   cron hour in `wrangler.jsonc` in your copy (§3). The other defaults are
+   this repo's own tuning; see §5.
+4. After it deploys, set up the native notifications (§2.5).
+
+Later changes go through your copy of the repository: Cloudflare redeploys
+on every push to it.
+
+### Deploy by hand
 
 ```bash
 npm install
@@ -157,9 +186,9 @@ binding that is already declared in `wrangler.jsonc`.
 
 ### 2.4 Deploy
 
-`DRY_RUN` is `"true"` in `wrangler.jsonc`, so the first deploy only logs
-digests. Check `npx wrangler tail` or Workers Observability, then set
-`DRY_RUN` to `"false"` and deploy again.
+For a first trial, set `DRY_RUN` to `"true"` in `wrangler.jsonc` so the
+deploy only logs digests. Check `npx wrangler tail` or Workers Observability,
+then set it back to `"false"` and deploy again.
 
 ```bash
 npm run deploy

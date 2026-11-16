@@ -18,5 +18,39 @@
     "typescript": "^5.9.3",
     "vitest": "^3.2.7",
     "wrangler": "^4.158.0"
+  },
+  "cloudflare": {
+    "bindings": {
+      "CF_API_TOKEN": {
+        "description": "Read-only Cloudflare API token. Create it first with the permissions listed in the README (§2.1). **No Edit or Write permissions.**"
+      },
+      "CF_ACCOUNT_ID": {
+        "description": "Your Cloudflare account ID (optional: leave empty and alertflare looks it up, at one extra API call per run)."
+      },
+      "POSTMARK_SERVER_TOKEN": {
+        "description": "Postmark **Server API token**, used when `NOTIFIER` is `postmark`. If you send with Cloudflare Email instead, enter `unused`."
+      },
+      "EMAIL_FROM": {
+        "description": "Sender address. Postmark: a confirmed sender signature or domain. Cloudflare Email: an address on your Email Routing domain."
+      },
+      "EMAIL_TO": {
+        "description": "Recipient address(es), comma separated. Cloudflare Email: each must be a verified Email Routing destination address."
+      },
+      "NOTIFIER": {
+        "description": "`postmark` or `cloudflare` (Cloudflare Email via the `send_email` binding)."
+      },
+      "DRY_RUN": {
+        "description": "`true` only logs digests (good for a first run); `false` sends email."
+      },
+      "TIMEZONE": {
+        "description": "IANA timezone for dates in messages and the heartbeat day, e.g. `Europe/London`."
+      },
+      "ALERTFLARE_STATE": {
+        "description": "KV namespace for alertflare's state (already-reported findings, snapshots, heartbeat stats). A new one is created for you."
+      },
+      "EMAIL": {
+        "description": "Cloudflare Email binding, only used when `NOTIFIER` is `cloudflare`."
+      }
+    }
   }
 }

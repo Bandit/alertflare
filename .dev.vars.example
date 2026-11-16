@@ -4,4 +4,6 @@ CF_ACCOUNT_ID=
 POSTMARK_SERVER_TOKEN=
 EMAIL_FROM=alertflare@your-domain.example
 EMAIL_TO=you@example.com
-DRY_RUN=true
+# Uncomment for local runs. Commented out so the Deploy to Cloudflare button
+# doesn't create a DRY_RUN secret that clashes with the DRY_RUN var.
+# DRY_RUN=true
