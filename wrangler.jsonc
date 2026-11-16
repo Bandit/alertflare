@@ -31,6 +31,8 @@
     // "postmark" (needs POSTMARK_SERVER_TOKEN secret) or "cloudflare" (send_email binding)
     "NOTIFIER": "postmark",
     "POSTMARK_MESSAGE_STREAM": "outbound",
+    // IANA timezone for dates in messages and the heartbeat day
+    "TIMEZONE": "Pacific/Auckland",
     "HEARTBEAT_DAY": "mon",
     "ASN_REPEAT_THRESHOLD": "50",
     "VOLUME_JUMP_MULTIPLIER": "3",
