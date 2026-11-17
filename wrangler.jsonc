@@ -9,7 +9,7 @@
   "triggers": {
     // UTC only: pick the hour that suits your timezone (README §3).
     // Keep in sync with CRONS in src/index.ts.
-    "crons": ["0 19 * * *", "30 * * * *"]
+    "crons": ["0 19 * * *", "30 * * * *", "*/5 * * * *"]
   },
   "kv_namespaces": [
     // Dashboard name: "alertflare-state" (Storage & Databases → KV).

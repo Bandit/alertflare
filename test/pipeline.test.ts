@@ -5,6 +5,7 @@ import auditFixture from "./fixtures/audit-v2.json";
 import dnsFixture from "./fixtures/dns-records.json";
 import settingsFixture from "./fixtures/zone-settings.json";
 import tokensFixture from "./fixtures/user-tokens.json";
+import tunnelsFixture from "./fixtures/cfd-tunnels.json";
 import { run } from "../src/pipeline";
 import { COLLECTORS } from "../src/collectors";
 import type { Message, Notifier } from "../src/notify/notifier";
@@ -33,6 +34,7 @@ function fakeApi(overrides: Partial<Record<string, Handler>> = {}) {
     if (url.includes("/access/logs")) return route("access", () => jsonResponse({ success: false, errors: [{ code: 12006, message: "Access is not enabled" }], result: null }, 403));
     if (url.includes("/dns_records")) return route("dns", () => jsonResponse(dnsFixture));
     if (url.includes("/settings")) return route("settings", () => jsonResponse(settingsFixture));
+    if (url.includes("/cfd_tunnel")) return route("tunnels", () => jsonResponse(tunnelsFixture));
     if (url.includes("/user/tokens/verify")) return route("verify", () => jsonResponse({ success: true, errors: [], result: { id: tokensFixture.result[0]!.id, status: "active" } }));
     if (url.includes("/user/tokens")) return route("tokens", () => jsonResponse(tokensFixture));
     if (url.includes("/registrar/")) return route("registrar", () => jsonResponse({ success: false, errors: [{ code: 10000, message: "Authentication error" }], result: null }, 403));
@@ -133,5 +135,18 @@ describe("delivery failures", () => {
     const n = new Capture();
     await run(env, "daily", new Date(NOW.getTime() + 3_600_000), { collectors: COLLECTORS, notifier: n, fetchImpl: api.fetchImpl });
     expect(n.sent[0]!.text).toContain("POST /api/webhook/{id}");
+  });
+
+  it("frequent run: tunnels only, silent when healthy, no lastrun write", async () => {
+    const env = testEnv();
+    const kv = env.ALERTFLARE_STATE as unknown as MemoryKV;
+    const api = fakeApi();
+    const n = new Capture();
+    const r = await run(env, "frequent", new Date("2026-11-10T19:05:00Z"), { collectors: COLLECTORS, notifier: n, fetchImpl: api.fetchImpl });
+    expect(r.failures).toEqual([]);
+    expect(n.sent).toEqual([]);
+    expect(api.calls.every((u) => u.includes("/cfd_tunnel"))).toBe(true);
+    expect(kv.store.has("lastrun:frequent")).toBe(false);
+    expect(kv.store.has("state:tunnels")).toBe(true);
   });
 });

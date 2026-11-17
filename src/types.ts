@@ -46,7 +46,8 @@ export interface CollectorResult {
   newState?: unknown;
 }
 
-export type Schedule = "daily" | "hourly";
+/** daily digest, hourly urgent check, frequent = every 5 minutes (tunnel health). */
+export type Schedule = "daily" | "hourly" | "frequent";
 
 export interface ZoneRef {
   id: string;

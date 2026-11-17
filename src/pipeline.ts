@@ -156,7 +156,7 @@ export async function run(env: Env, schedule: Schedule, now: Date, opts: RunOpti
 
   const footer = [`${config.dryRun ? "DRY RUN · " : ""}${schedule} run · ${cf.used} API calls`];
   const msg = renderDigest(toSend, {
-    title: schedule === "hourly" ? "Urgent" : "Daily digest",
+    title: schedule === "hourly" ? "Urgent" : schedule === "frequent" ? "Tunnels" : "Daily digest",
     date: local.date,
     footer,
   });
@@ -170,7 +170,8 @@ export async function run(env: Env, schedule: Schedule, now: Date, opts: RunOpti
   }
   for (const p of pending) await writeJson(kv, p.key, p.value, p.ttl);
 
-  await kv.put(`lastrun:${schedule}`, now.toISOString());
+  // The 5-minute run would cost 288 KV writes a day for this alone.
+  if (schedule !== "frequent") await kv.put(`lastrun:${schedule}`, now.toISOString());
 
   if (schedule === "daily") {
     if (Object.keys(dayStats).length) {

@@ -9,6 +9,7 @@ import type { Env, Schedule } from "./types";
 export const CRONS: Record<string, Schedule> = {
   "0 19 * * *": "daily",
   "30 * * * *": "hourly",
+  "*/5 * * * *": "frequent",
 };
 
 export default {

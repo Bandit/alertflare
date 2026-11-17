@@ -6,6 +6,7 @@ import { inventory } from "./inventory";
 import { loginActivity } from "./loginActivity";
 import { domains } from "./domains";
 import { tokens } from "./tokens";
+import { tunnels, tunnelSummary } from "./tunnels";
 
 /**
  * Registered collectors, in run order. Order matters for the shared
@@ -14,8 +15,8 @@ import { tokens } from "./tokens";
  *
  * To add a source: create a file exporting a `Collector`, add it here.
  *
- * Tunnel health is intentionally NOT a collector: Cloudflare's native
- * "Tunnel Health Alert" notification (all Zero Trust plans) already does
- * state-change alerting. See README.
+ * Tunnel health replaces Cloudflare's native "Tunnel Health Alert", which
+ * emails on every state flip: `tunnels` polls every 5 minutes and alerts
+ * only on sustained outages; `tunnel-summary` rolls flapping into the digest.
  */
-export const COLLECTORS: Collector[] = [auditLogs, tokens, securityEvents, loginActivity, access, domains, inventory];
+export const COLLECTORS: Collector[] = [tunnels, auditLogs, tokens, securityEvents, loginActivity, access, tunnelSummary, domains, inventory];

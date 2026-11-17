@@ -127,6 +127,8 @@ export interface Config {
   registryLookups: boolean;
   /** Warn this many days before a domain expires (if auto-renew isn't on). */
   domainExpiryWarnDays: number;
+  /** Minutes a tunnel must be down before the urgent alert. */
+  tunnelDownGraceMinutes: number;
   /** audit entries whose description contains any of these are ignored */
   auditIgnore: string[];
   auditIncludeSystem: boolean;
@@ -201,6 +203,7 @@ export function loadConfig(env: Env): Config {
     loginDistinctIps: num(env.LOGIN_DISTINCT_IPS, 10),
     registryLookups: env.REGISTRY_LOOKUPS === undefined ? true : bool(env.REGISTRY_LOOKUPS),
     domainExpiryWarnDays: num(env.DOMAIN_EXPIRY_WARN_DAYS, 30),
+    tunnelDownGraceMinutes: num(env.TUNNEL_DOWN_GRACE_MINUTES, 5),
     auditIgnore: [
       ...(list(env.AUDIT_IGNORE).length ? list(env.AUDIT_IGNORE) : DEFAULT_AUDIT_IGNORE),
       ...list(env.AUDIT_EXTRA_IGNORE),

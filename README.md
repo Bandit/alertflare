@@ -14,6 +14,8 @@ nothing new happened, it sends **nothing**. A weekly heartbeat proves it is
 still alive.
 
 - Daily digest: at the hour you set in the daily cron (see §3), grouped by severity and then by zone.
+- Tunnel check every 5 minutes: one urgent email when a tunnel has been down
+  for 5 minutes, one when it recovers. Short blips only show up in the digest.
 - Hourly urgent check: API tokens and account members. It sends only when
   something new happens and never repeats an item.
 - Weekly heartbeat on Monday: totals per collector and per zone, plus any
@@ -37,7 +39,6 @@ zones, and can be delivered by email or webhook. Step-by-step setup is in
 
 | Notification | Why |
 |---|---|
-| **Tunnel Health Alert** | Fires on tunnel state changes (healthy, degraded, down, inactive) on all Zero Trust plans. alertflare therefore does **not** poll tunnels. |
 | **Tunnel Creation or Deletion Event** | Instant alert when a tunnel is created or deleted. |
 | **HTTP DDoS Attack Alert** | Fires on attacks mitigated above 100 rps, on all plans. |
 | **Universal SSL Alert** | Covers certificate validation, issuance, renewal and expiry. |
@@ -66,7 +67,8 @@ These are **not** available natively on Free or Pro, so alertflare covers them:
 | `domains` | daily | `GET /zones` (all statuses), `GET /zones/{id}/dnssec`, `GET /accounts/{id}/registrar/registrations`, plus a public registry lookup per domain (RDAP, or WHOIS on TCP 43 for `.nz`) | ✅ | ✅ |
 | `access` | daily | `GET /accounts/{id}/access/logs/access_requests` | ✅ (Zero Trust Free keeps only **24 h** of logs) | ✅ |
 | `inventory` | daily | `GET /zones/{id}/dns_records`, `GET /zones/{id}/settings` (one call for all settings) | ✅ | ✅ |
-| ~~tunnel health~~ | | | Use the native Tunnel Health Alert | |
+| `tunnels` | every 5 minutes | `GET /accounts/{id}/cfd_tunnel` | ✅ | ✅ |
+| `tunnel-summary` | daily | the `tunnels` collector's event log (no API call) | ✅ | ✅ |
 
 Account-level security analytics needs Enterprise, so `security-events`
 enumerates zones and queries them in batches of up to 10 zones per GraphQL
@@ -116,13 +118,13 @@ Go to Dashboard → My Profile → API Tokens → **Create Token** → *Create C
 | Zone | **DNS** | Read | inventory | Reads DNS records to detect new hostnames and proxied flips. |
 | Zone | **Zone Settings** | Read | inventory | Reads the SSL/TLS mode, minimum TLS version, HSTS and Always Use HTTPS. |
 | Account | **Registrar: Domains** | Read | domains | *Optional.* Expiry, auto-renew, transfer lock and status for domains registered at Cloudflare. Without it, that part is skipped. Don't tick *Admin*. |
+| Account | **Cloudflare Tunnel** | Read | tunnels | Tunnel status. Without it the API returns an *empty list*, not an error, so alertflare reports a failure if tunnels it knew about vanish. Don't tick *Edit*. |
 | User | **API Tokens** | Read | tokens | *Optional.* Token metadata (names, permissions, status, expiry; never token values), so new or changed tokens are reported. Without it, the collector is skipped. Don't tick *Edit*. |
 
 - **Account Resources:** *Include → your account* only.
 - **Zone Resources:** *Include → All zones from an account → your account*.
 - **User Resources** (only if you add API Tokens Read): your user.
-- **Not needed:** any Edit/Write permission, Cloudflare Tunnel Read (there
-  is no tunnel collector), or User Details Read (the user audit log it
+- **Not needed:** any Edit/Write permission, or User Details Read (the user audit log it
   unlocks had no logins or token changes on a live account; see §9).
 
 Store the token as a secret. Never put it in `wrangler.jsonc` or `.dev.vars.example`.
@@ -213,11 +215,15 @@ product and then the notification type, and add your email as the delivery
 method. After saving, use **Test** on each one. That shows you what it looks
 like and lets you mark it "not spam" if needed.
 
-**1. Tunnel Health Alert (the important one)**
-- Product: **Cloudflare Tunnel → Tunnel Health Alert**. No filters; it covers
-  every tunnel in the account.
-- Fires when a tunnel moves between Healthy, Degraded, Down and Inactive, and
-  again when it recovers. This is why alertflare has no tunnel collector.
+**1. Tunnel Health Alert: leave it off**
+- alertflare's `tunnels` collector replaces it. The native alert emails on
+  every state flip, so one flapping connection can send a dozen emails in ten
+  minutes. alertflare checks every 5 minutes, alerts once when a tunnel has
+  been down for `TUNNEL_DOWN_GRACE_MINUTES`, once when it recovers, and
+  rolls the rest into the daily digest.
+- The trade-off: alerts arrive 5–10 minutes after an outage starts instead
+  of immediately, and they depend on alertflare itself running (the weekly
+  heartbeat is the check on that).
 
 **2. Tunnel Creation or Deletion Event**
 - Product: **Cloudflare Tunnel → Tunnel Creation or Deletion Event**.
@@ -238,10 +244,10 @@ like and lets you mark it "not spam" if needed.
 **5. Health Check on your origin (Pro zone plan or higher)**
 
 > Health Checks need the zone on **Pro or higher**. A Workers Paid
-> subscription doesn't count. On a Free zone, skip this step; the Tunnel
-> Health Alert is the closest native substitute.
+> subscription doesn't count. On a Free zone, skip this step; alertflare's
+> tunnel check is the closest substitute.
 
-The Tunnel Health Alert only tells you whether the *tunnel* is up. It won't
+The tunnel check only tells you whether the *tunnel* is up. It won't
 notice your app crashing behind a healthy tunnel and returning 502s.
 A Health Check covers that.
 
@@ -284,6 +290,7 @@ Cron Triggers run in **UTC only**. Cloudflare has no timezone support.
 |---|---|
 | `0 19 * * *` | daily digest (plus the heartbeat on `HEARTBEAT_DAY`) |
 | `30 * * * *` | hourly urgent check |
+| `*/5 * * * *` | tunnel check |
 
 - Pick the daily cron hour so the digest arrives when you want it in your
   local time, for example `0 7 * * *` for 08:00 in UTC+1.
@@ -360,6 +367,7 @@ npm run typecheck
 | `LOGIN_HOME_COUNTRIES` | | Comma-separated country codes (e.g. `GB`) never reported as "new country". Leave empty to rely on what alertflare has learned. |
 | `REGISTRY_LOOKUPS` | `true` | Look up each domain at its registry (RDAP or WHOIS) for the delegation (hijack) check. Sends only domain names, which are public, to the registries. |
 | `DOMAIN_EXPIRY_WARN_DAYS` | `30` | Warn this many days before a domain expires when auto-renew isn't on (urgent within 7 days regardless). |
+| `TUNNEL_DOWN_GRACE_MINUTES` | `5` | How long a tunnel must be down before the urgent alert. Shorter outages only appear in the daily digest. |
 | `MAX_ZONES_PER_RUN` | `10` | Inventory zones checked per daily run. Zones rotate (see §8). |
 
 ## 6. Noise rules
@@ -523,8 +531,8 @@ These limits were checked against developers.cloudflare.com in November 2026.
 |---|---|---|
 | Subrequests per invocation | 50 | Cloudflare API calls are capped at 47 per run by a shared budget. The rest is kept for Postmark sends: digest plus heartbeat. |
 | CPU per Cron invocation | **10 ms** (network wait doesn't count) | GraphQL aggregates server-side where the plan allows. Raw mode is capped at 1,000 rows per zone and filters noise server-side. The pipeline is a single pass. |
-| Cron Triggers per account | 5 | Uses 2. |
-| KV writes per day | 1,000 | One document per collector, written only when it changed: roughly 10 writes per day plus at most 2 per hourly run. |
+| Cron Triggers per account | 5 (250 on Workers Paid) | Uses 3. Shared with every other Worker in the account. |
+| KV writes per day | 1,000 | One document per collector, written only when it changed: roughly 10 writes per day plus at most 2 per hourly run. The 5-minute tunnel check writes only when a tunnel's state changes. |
 | GraphQL | 300 queries per 5 min; 10 zones per query | 2–3 queries per 10 zones per day. |
 
 API calls per daily run, with N zones:
