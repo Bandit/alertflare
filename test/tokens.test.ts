@@ -53,7 +53,7 @@ describe("diffTokens", () => {
     t[0]!.policies![0]!.permission_groups.push({ id: "x", name: "DNS Write" });
     const [f] = diffTokens(base, t, opts).findings;
     expect(f!.severity).toBe("urgent");
-    expect(f!.summary).toBe(`API token "alertflare-readonly" (alertflare's own token) permissions changed: it gained write access`);
+    expect(f!.summary).toBe(`API token "monitor-readonly" (alertflare's own token) permissions changed: it gained write access`);
     expect(f!.details).toEqual(["+ allow DNS Write @ all zones"]);
   });
 
@@ -78,7 +78,7 @@ describe("diffTokens", () => {
       'info: API token "Edit zone DNS" renamed to "renamed"',
     ]);
     const [d] = diffTokens(base, [list[1]!], opts).findings;
-    expect([d!.severity, d!.summary]).toEqual(["urgent", `API token "alertflare-readonly" (alertflare's own token) was deleted`]);
+    expect([d!.severity, d!.summary]).toEqual(["urgent", `API token "monitor-readonly" (alertflare's own token) was deleted`]);
   });
 
   it("warns before expiry", () => {

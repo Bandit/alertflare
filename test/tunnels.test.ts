@@ -40,12 +40,12 @@ describe("pollTunnels", () => {
     // Both tunnels flap between 00:12 and 00:22 (the native alert sent 12 emails).
     // Live semantics: healthy => conns_inactive_at null; reconnect moves conns_active_at.
     const polls: [string, ApiTunnel[]][] = [
-      ["00:10", [tun("healthy", undefined, "c", "cubi", "23:00"), tun("healthy", undefined, "h", "ha", "23:00")]],
-      // cubi dropped 00:12 and was back 00:13, between polls; ha degraded
-      ["00:15", [tun("healthy", undefined, "c", "cubi", "00:13"), tun("degraded", undefined, "h", "ha", "23:00")]],
-      // cubi down since 00:20; ha dropped 00:19 and was back 00:20
-      ["00:20", [tun("down", "00:20", "c", "cubi", "00:13"), tun("healthy", undefined, "h", "ha", "00:20")]],
-      ["00:25", [tun("healthy", undefined, "c", "cubi", "00:22"), tun("healthy", undefined, "h", "ha", "00:20")]],
+      ["00:10", [tun("healthy", undefined, "a", "tunnel-a", "23:00"), tun("healthy", undefined, "b", "tunnel-b", "23:00")]],
+      // tunnel-a dropped 00:12 and was back 00:13, between polls; tunnel-b degraded
+      ["00:15", [tun("healthy", undefined, "a", "tunnel-a", "00:13"), tun("degraded", undefined, "b", "tunnel-b", "23:00")]],
+      // tunnel-a down since 00:20; tunnel-b dropped 00:19 and was back 00:20
+      ["00:20", [tun("down", "00:20", "a", "tunnel-a", "00:13"), tun("healthy", undefined, "b", "tunnel-b", "00:20")]],
+      ["00:25", [tun("healthy", undefined, "a", "tunnel-a", "00:22"), tun("healthy", undefined, "b", "tunnel-b", "00:20")]],
     ];
     let state: TunnelsState | undefined;
     const sent = [];
@@ -57,8 +57,8 @@ describe("pollTunnels", () => {
     expect(sent).toEqual([]);
     const summary = summariseEvents(state!.events, T("00:00"), T("01:00"), "2026-11-18");
     expect(summary.map((f) => [f.severity, f.summary, f.details])).toEqual([
-      ["info", "Tunnel cubi went down 2× since the last digest", ["longest outage about 2 min", "each recovered before the alert grace period"]],
-      ["info", "Tunnel ha went down 1×, degraded 1× since the last digest", ["each recovered before the alert grace period"]],
+      ["info", "Tunnel tunnel-a went down 2× since the last digest", ["longest outage about 2 min", "each recovered before the alert grace period"]],
+      ["info", "Tunnel tunnel-b went down 1×, degraded 1× since the last digest", ["each recovered before the alert grace period"]],
     ]);
   });
 

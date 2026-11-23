@@ -638,6 +638,11 @@ API calls per daily run, with N zones:
 
 ## 11. Adding a collector
 
+Read [AGENTS.md](AGENTS.md) first: this repo is public, so tests and fixtures
+use placeholders only. `npm install` enables a git hook that blocks commits
+containing real infrastructure values; build its local denylist with
+`npm run privacy:refresh` and scan everything with `npm run privacy:check`.
+
 Create `src/collectors/<name>.ts` that exports a `Collector`:
 
 - `id`, `label` and `schedules`;

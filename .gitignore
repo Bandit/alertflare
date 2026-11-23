@@ -4,3 +4,5 @@ node_modules/
 .dev.vars.*
 !.dev.vars.example
 dist/
+# Real infrastructure values for the privacy check (see AGENTS.md). Never commit.
+.private-denylist.json

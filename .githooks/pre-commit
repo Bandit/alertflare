@@ -1,0 +1,3 @@
+#!/bin/sh
+# Blocks commits containing real infrastructure values (see AGENTS.md).
+exec node scripts/privacy-check.mjs --staged

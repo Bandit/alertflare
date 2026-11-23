@@ -5,7 +5,7 @@
   "result": [
     {
       "id": "0000000000000000000000000000aaaa",
-      "name": "alertflare-readonly",
+      "name": "monitor-readonly",
       "status": "active",
       "issued_on": "2026-11-01T00:00:00Z",
       "modified_on": "2026-11-10T00:42:28Z",

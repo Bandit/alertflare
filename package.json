@@ -11,7 +11,10 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "cf-typegen": "wrangler types",
-    "ack": "node scripts/ack.mjs"
+    "ack": "node scripts/ack.mjs",
+    "prepare": "git config core.hooksPath .githooks 2>/dev/null || true",
+    "privacy:refresh": "node scripts/privacy-refresh.mjs",
+    "privacy:check": "node scripts/privacy-check.mjs --all"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261106.1",
