@@ -149,4 +149,27 @@ describe("delivery failures", () => {
     expect(kv.store.has("lastrun:frequent")).toBe(false);
     expect(kv.store.has("state:tunnels")).toBe(true);
   });
+
+  it("frequent run: a one-off API error is retried, and failures are reported only after 3 in a row", async () => {
+    const env = testEnv();
+    const blip = () => jsonResponse({ success: false, errors: [{ code: 10500, message: "Internal authentication error" }], result: null }, 500);
+    let calls = 0;
+    const once = fakeApi({ tunnels: () => (++calls === 1 ? blip() : jsonResponse(tunnelsFixture)) });
+    const r0 = await run(env, "frequent", new Date("2026-11-10T19:00:00Z"), { collectors: COLLECTORS, notifier: new Capture(), fetchImpl: once.fetchImpl });
+    expect(r0.failures).toEqual([]); // the retry succeeded
+
+    const down = fakeApi({ tunnels: blip });
+    const at = (m: number) => new Date(Date.parse("2026-11-10T19:05:00Z") + m * 60_000);
+    const sent: number[] = [];
+    for (let i = 0; i < 4; i++) {
+      const n = new Capture();
+      await run(env, "frequent", at(i * 5), { collectors: COLLECTORS, notifier: n, fetchImpl: down.fetchImpl });
+      sent.push(n.sent.length);
+      if (i === 0) {
+        // A success in between resets the streak.
+        await run(env, "frequent", at(2), { collectors: COLLECTORS, notifier: new Capture(), fetchImpl: fakeApi().fetchImpl });
+      }
+    }
+    expect(sent).toEqual([0, 0, 0, 1]);
+  });
 });

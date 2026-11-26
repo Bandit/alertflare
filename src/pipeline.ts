@@ -14,6 +14,11 @@ import type { Collector, CollectorStats, Env, Finding, Schedule, ZoneRef } from 
  */
 const SUBREQUEST_BUDGET = 47;
 const DAY = 86_400;
+/**
+ * The 5-minute schedule only reports a collector failure once it has failed
+ * this many runs in a row, so a single API blip doesn't send an email.
+ */
+const FREQUENT_FAILURE_STREAK = 3;
 
 export interface RunOptions {
   collectors: Collector[];
@@ -131,13 +136,22 @@ export async function run(env: Env, schedule: Schedule, now: Date, opts: RunOpti
       if (diff.changed) pending.push({ key: reportedKey, value: diff.next });
       toSend.push(...diff.toReport);
       log(`${collector.id}: ${result.findings.length} findings, ${diff.toReport.length} to report`);
+      if (schedule === "frequent" && (await kv.get(`failstreak:${collector.id}`))) await kv.delete(`failstreak:${collector.id}`);
     } catch (err) {
       const msg = redactText(describeError(err));
       log(`${collector.id} FAILED: ${msg}`);
       report.failures.push(`${collector.id}: ${msg}`);
+      let persistent = true;
+      if (schedule === "frequent") {
+        const streakKey = `failstreak:${collector.id}`;
+        const streak = Number((await kv.get(streakKey)) ?? 0) + 1;
+        await kv.put(streakKey, String(streak), { expirationTtl: 3600 });
+        persistent = streak >= FREQUENT_FAILURE_STREAK;
+        if (!persistent) log(`${collector.id}: failure ${streak}/${FREQUENT_FAILURE_STREAK}, not reporting yet`);
+      }
       // Rate-limit failure findings to once per day per collector.
       const failKey = `failure:${collector.id}`;
-      if (!(await kv.get(failKey))) {
+      if (persistent && !(await kv.get(failKey))) {
         pending.push({ key: failKey, value: now.toISOString(), ttl: DAY });
         toSend.push({
           source: "alertflare",

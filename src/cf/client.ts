@@ -64,7 +64,10 @@ export class CloudflareClient {
 
   /** GET a v4 endpoint and return the full envelope. */
   async getEnvelope<T>(path: string): Promise<V4Envelope<T>> {
-    const res = await this.raw(path);
+    let res = await this.raw(path);
+    // One retry for Cloudflare-side blips (5xx, e.g. "10500 Internal
+    // authentication error"), if the budget allows.
+    if (res.status >= 500 && this.remaining > 0) res = await this.raw(path);
     let body: V4Envelope<T>;
     try {
       body = (await res.json()) as V4Envelope<T>;
